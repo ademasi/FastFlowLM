@@ -15,7 +15,9 @@
 #include "minja/chat-template.hpp"
 #include <cstring>
 #include <iostream>
+#include <fstream>
 #include <string>
+#include <chrono>
 #include <thread>
 #include <atomic>
 #include <condition_variable>
@@ -26,6 +28,7 @@
 #include <windows.h>
 #include <shlobj.h>
 #include <shellapi.h>
+#include <io.h>
 #include "utils/wmi_helper.hpp"
 #endif
 #include "utils/vm_args.hpp"
@@ -157,12 +160,47 @@ void ensure_models_directory(const std::string& exe_dir) {
 ///@brief handle_user_input is used to handle the user input
 ///@param quiet if true, suppresses printing prompts
 void handle_user_input(bool sub_process_mode) {
+    bool stdin_is_interactive = false;
+#ifdef _WIN32
+    stdin_is_interactive = (_isatty(_fileno(stdin)) != 0);
+#else
+    stdin_is_interactive = (::isatty(STDIN_FILENO) != 0);
+#endif
+
+    std::istream* input_stream = &std::cin;
+    std::ifstream tty_stream;
+
+    if (!stdin_is_interactive) {
+#ifdef _WIN32
+        tty_stream.open("CONIN$");
+#else
+        tty_stream.open("/dev/tty");
+#endif
+        if (tty_stream.is_open()) {
+            input_stream = &tty_stream;
+            if (!sub_process_mode) {
+                header_print_r("FLM", "STDIN is not interactive. Listening for commands from terminal.");
+            }
+        }
+        else {
+            if (!sub_process_mode) {
+                header_print_r("FLM", "STDIN is not interactive and no terminal is available. Command input disabled; server remains running.");
+            }
+            while (!should_exit) {
+                std::this_thread::sleep_for(std::chrono::milliseconds(250));
+            }
+            return;
+        }
+    }
+
     std::string input;
     while (!should_exit) {
         if (!sub_process_mode){
             header_print("FLM", "Enter 'exit' or use 'Ctrl+C' to stop the server: ");
         }
-        std::getline(std::cin, input);
+
+        std::getline(*input_stream, input);
+
         if (input == "exit") {
             should_exit = true;
             exit_cv.notify_all();
