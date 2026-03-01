@@ -588,7 +588,7 @@ public:
             return;
         }
 
-        amdxdna_drm_query_aie_metadata query_aie_metadata;
+        amdxdna_drm_query_aie_metadata query_aie_metadata = {};
         get_info.param = DRM_AMDXDNA_QUERY_AIE_METADATA;
         get_info.buffer_size = sizeof(amdxdna_drm_query_aie_metadata);
         get_info.buffer = (unsigned long)&query_aie_metadata;
