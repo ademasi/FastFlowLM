@@ -237,7 +237,7 @@
                 },
                 "label":[
                     "audio",
-                    "transcript"
+                    "transcription"
                 ],
                 "footprint": 0.62
             }
