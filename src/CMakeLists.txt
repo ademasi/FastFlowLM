@@ -1,8 +1,13 @@
 cmake_minimum_required(VERSION 3.22)
 project(flm LANGUAGES CXX VERSION 0.1.0)
 
-set(FLM_VERSION "0.9.35" CACHE STRING "FastFlowLM version string embedded at compile time")
-set(NPU_VERSION "32.0.203.304" CACHE STRING "Minimum NPU driver version string embedded at compile time")
+if(NOT DEFINED FLM_VERSION)
+    message(FATAL_ERROR "FLM_VERSION must be specified externally. Use -DFLM_VERSION=<version> when running cmake.")
+endif()
+
+if(NOT DEFINED NPU_VERSION)
+    message(FATAL_ERROR "NPU_VERSION must be specified externally. Use -DNPU_VERSION=<version> when running cmake.")
+endif()
 
 # Set build type to Release
 set(CMAKE_BUILD_TYPE Release)
