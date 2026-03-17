@@ -184,7 +184,6 @@ RestHandler::RestHandler(model_list& models, ModelDownloader& downloader, progra
         }
         if (!ensure_model_loaded(default_model_tag)) {
             header_print("Error", "Failed to load default model: " + default_model_tag);
-            this->current_model_tag = "model-faker";
         }
     }
     else {
@@ -223,6 +222,7 @@ bool RestHandler::ensure_model_loaded(const std::string& model_tag) {
             this->auto_chat_engine.reset();
             this->npu_device_inst.reset();
             this->npu_device_inst = xrt::device(0);
+            this->current_model_tag = "model-faker";
             return false;
         }
         current_model_tag = ensure_tag;
@@ -411,7 +411,6 @@ void RestHandler::handle_generate(const json& request,
         if (!ensure_model_loaded(model)) {
             json error_response = {{"error", "Failed to load " + model + " model!"}};
             send_response(error_response);
-            this->current_model_tag = "model-faker"; // No model get loaded
             return;
         }
         auto load_end_time = time_utils::now();
@@ -524,7 +523,6 @@ void RestHandler::handle_chat(const json& request,
         if (!ensure_model_loaded(model)) {
             json error_response = {{"error", "Failed to load " + model + " model!"}};
             send_response(error_response);
-            this->current_model_tag = "model-faker";
             return;
         }
         auto load_end_time = time_utils::now();
@@ -874,7 +872,6 @@ void RestHandler::handle_openai_chat_completion(const json& request,
         if (!ensure_model_loaded(model)) {
             json error_response = {{"error", "Failed to load " + model + " model!"}};
             send_response(error_response);
-            this->current_model_tag = "model-faker";
             return;
         }
         auto load_end_time = time_utils::now();
@@ -1145,7 +1142,6 @@ void RestHandler::handle_openai_completion(const json& request,
          if (!ensure_model_loaded(model)) {
             json error_response = {{"error", "Failed to load " + model + " model!"}};
             send_response(error_response);
-            this->current_model_tag = "model-faker";
             return;
         }
 
