@@ -219,7 +219,10 @@ bool RestHandler::ensure_model_loaded(const std::string& model_tag) {
         }
         catch (const std::exception& e) {
             header_print("ERROR", "Failed to load model: " + std::string(e.what()));
-            std::cerr << "Failed to load model: " << e.what() << std::endl;
+            std::cerr << "[ERROR] Failed to load model: " << e.what() << std::endl;
+            this->auto_chat_engine.reset();
+            this->npu_device_inst.reset();
+            this->npu_device_inst = xrt::device(0);
             return false;
         }
         current_model_tag = ensure_tag;
