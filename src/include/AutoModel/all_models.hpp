@@ -17,6 +17,7 @@
 #include "modeling_qwen3.hpp"
 #include "modeling_qwen2vl.hpp"
 #include "modeling_qwen3vl.hpp"
+#include "modeling_qwen3_5vl.hpp"
 #include "model_list.hpp"
 #include "nlohmann/json.hpp"
 
@@ -30,6 +31,7 @@ typedef enum {
     qwen3_it,
     qwen3_tk,
     qwen3vl,
+    qwen3_5,
     gemma3,
     gemma3_text,
     gpt_oss,
@@ -52,6 +54,7 @@ inline std::pair<std::string, std::unique_ptr<AutoModel>> get_auto_model(const s
         {"qwen3-it", SupportedModelFamily::qwen3_it},
         {"qwen3-tk", SupportedModelFamily::qwen3_tk},
         {"qwen3vl", SupportedModelFamily::qwen3vl},
+        {"qwen3.5", SupportedModelFamily::qwen3_5},
         {"gemma3", SupportedModelFamily::gemma3},
         {"gemma3-text", SupportedModelFamily::gemma3_text},
         {"gpt-oss", SupportedModelFamily::gpt_oss},
@@ -108,6 +111,9 @@ inline std::pair<std::string, std::unique_ptr<AutoModel>> get_auto_model(const s
             break;
         case SupportedModelFamily::qwen3vl:
             auto_chat_engine = std::make_unique<Qwen3VL>(npu_device_inst);
+            break;
+        case SupportedModelFamily::qwen3_5:
+            auto_chat_engine = std::make_unique<Qwen3_5VL>(npu_device_inst);
             break;
         case SupportedModelFamily::lfm2:
             auto_chat_engine = std::make_unique<LFM2>(npu_device_inst);

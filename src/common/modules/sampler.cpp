@@ -170,6 +170,7 @@ void Sampler::sampler_temp_apply(float temp) {
         for (int i = 1; i < this->top_k_logits.size(); i++) {
             this->top_k_logits[i].logits = -std::numeric_limits<float>::infinity();
         }
+        return;
     }
 
     for (int i = 0; i < this->top_k_logits.size(); i++) {

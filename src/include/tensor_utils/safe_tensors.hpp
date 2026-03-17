@@ -38,6 +38,12 @@ protected:
 public:
     /// \brief Constructor
     /// \param model_path the model path
+    SafeTensors(){
+        this->model_path = "";
+    }
+    
+    /// \brief Constructor
+    /// \param model_path the model path
     SafeTensors(const std::string& model_path);
 
     /// \brief Destructor

@@ -174,6 +174,7 @@ target_link_libraries(flm PUBLIC
     qwen2vl_npu
     qwen3_npu
     qwen3vl_npu
+    qwen3_5vl_npu
     gemma_npu
     gemma_text_npu
     gpt_oss_npu

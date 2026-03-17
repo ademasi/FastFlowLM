@@ -74,7 +74,7 @@ int main(int argc, char* argv[]) {
         std::cout << "Prompt: " << uniformed_input.prompt << std::endl;
         std::cout << "Response: ";
         chat->start_total_timer();
-        std::string response = chat->generate_with_prompt(meta_info, uniformed_input, 1024, std::cout);
+        std::string response = chat->generate_with_prompt(meta_info, uniformed_input, 16, std::cout);
         chat->stop_total_timer();
         std::cout << std::endl;
         std::cout << std::endl;

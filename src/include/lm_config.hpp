@@ -24,6 +24,11 @@ class LM_Config{
         u32 num_attention_heads;
         u32 num_hidden_layers;
         u32 num_key_value_heads;
+        u32 linear_conv_kernel_dim;
+        u32 linear_key_head_dim;
+        u32 linear_num_key_heads;
+        u32 linear_num_value_heads;
+        u32 linear_value_head_dim;
         u32 pretraining_tp;
         f32 rms_norm_eps;
         f32 rope_theta;
@@ -40,25 +45,8 @@ class LM_Config{
 
         //vision specific
         std::string vision_model_weight;
-
+        nlohmann::json _vision_config;
         bool is_vlm;
-        u32 vision_conv2d_stride;
-        u32 vision_conv2d_padding;
-        u32 vision_conv2d_kernel;
-        u32 vision_conv2d_Cin;
-        u32 vision_conv2d_Cout;
-        u32 vision_average_pooling_kernel;
-        u32 vision_average_pooling_stride;
-        u32 vision_average_pooling_padding;
-        f32 vision_layer_norm_eps;
-        f32 vision_rms_norm_eps;
-        u32 vision_intermediate_size;
-        u32 vision_hidden_size;
-        u32 vision_head_dim;
-        u32 vision_num_attention_heads;
-        u32 vision_num_key_value_heads;
-        u32 vision_num_hidden_layers;
-
 
 
         nlohmann::json _json_config;
@@ -94,6 +82,12 @@ class LM_Config{
             JSON_GET(this->hidden_act, this->_json_config, "hidden_act", "", std::string);
             JSON_GET(this->intermediate_size, this->_json_config, "intermediate_size", 0, u32);
             JSON_GET(this->num_attention_heads, this->_json_config, "num_attention_heads", 0, u32);
+            JSON_GET(this->linear_conv_kernel_dim, this->_json_config, "linear_conv_kernel_dim", 0, u32);
+            JSON_GET(this->linear_key_head_dim, this->_json_config, "linear_key_head_dim", 0, u32);
+            JSON_GET(this->linear_num_key_heads, this->_json_config, "linear_num_key_heads", 0, u32);
+            JSON_GET(this->linear_num_value_heads, this->_json_config, "linear_num_value_heads", 0, u32);
+            JSON_GET(this->linear_value_head_dim, this->_json_config, "linear_value_head_dim", 0, u32);
+            
             JSON_GET(this->num_hidden_layers, this->_json_config, "num_hidden_layers", 0, u32);
             JSON_GET(this->num_key_value_heads, this->_json_config, "num_key_value_heads", 0, u32);
             JSON_GET(this->pretraining_tp, this->_json_config, "pretraining_tp", 0, u32);
@@ -110,22 +104,8 @@ class LM_Config{
             // config for vision
             {   
                 JSON_GET(this->vision_model_weight, this->_json_config, "vision_model_weight", "", std::string);
-                JSON_GET(this->vision_conv2d_stride, this->_json_config, "vision_conv2d_stride", 0, u32);
-                JSON_GET(this->vision_conv2d_padding, this->_json_config, "vision_conv2d_padding", 0, u32);
-                JSON_GET(this->vision_conv2d_kernel, this->_json_config, "vision_conv2d_kernel", 0, u32);
-                JSON_GET(this->vision_conv2d_Cin, this->_json_config, "vision_conv2d_Cin", 0, u32);
-                JSON_GET(this->vision_conv2d_Cout, this->_json_config, "vision_conv2d_Cout", 0, u32);
-                JSON_GET(this->vision_average_pooling_kernel, this->_json_config, "vision_average_pooling_kernel", 0, u32);
-                JSON_GET(this->vision_average_pooling_stride, this->_json_config, "vision_average_pooling_stride", 0, u32);
-                JSON_GET(this->vision_average_pooling_padding, this->_json_config, "vision_average_pooling_padding", 0, u32);
-                JSON_GET(this->vision_layer_norm_eps, this->_json_config, "vision_layer_norm_eps", 0.0, f32);
-                JSON_GET(this->vision_rms_norm_eps, this->_json_config, "vision_rms_norm_eps", 0.0, f32);
-                JSON_GET(this->vision_intermediate_size, this->_json_config, "vision_intermediate_size", 0, u32);
-                JSON_GET(this->vision_hidden_size, this->_json_config, "vision_hidden_size", 0, u32);
-                JSON_GET(this->vision_head_dim, this->_json_config, "vision_head_dim", 0, u32);
-                JSON_GET(this->vision_num_attention_heads, this->_json_config, "vision_num_attention_heads", 0, u32);
-                JSON_GET(this->vision_num_key_value_heads, this->_json_config, "vision_num_key_value_heads", 0, u32);
-                JSON_GET(this->vision_num_hidden_layers, this->_json_config, "vision_num_hidden_layers", 0, u32);
+                JSON_GET(this->_vision_config, this->_json_config, "vision_config", nlohmann::json::object(), nlohmann::json);
+
 
             }
             this->is_vlm = this->vision_model_weight != "";
@@ -159,6 +139,11 @@ class LM_Config{
             if (this->sliding_window > 0){
                 ss << "    sliding_window:         " << this->sliding_window << std::endl;
                 ss << "    sliding_window_pattern: " << this->sliding_window_pattern << std::endl;
+            }
+
+            if(this->is_vlm){
+                ss << "  Vision: "  << std::endl;
+                ss << "    vision_model_weight:    " << this->vision_model_weight << std::endl;
             }
             return ss.str();
         }
