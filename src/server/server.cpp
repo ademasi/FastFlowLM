@@ -248,19 +248,19 @@ void HttpSession::handle_request(bool cors) {
         header_print("✈️ ", "Handling Preflight (OPTIONS) request");
 
         // reponse empty body for OPTIONS
-        http::response<http::empty_body> options_res;
-        options_res.version(req_.version());
-        options_res.result(http::status::ok); 
-        options_res.keep_alive(req_.keep_alive());
+        auto options_res = std::make_shared<http::response<http::empty_body>>();
+        options_res->version(req_.version());
+        options_res->result(http::status::ok); 
+        options_res->keep_alive(req_.keep_alive());
 
-        options_res.set("Access-Control-Allow-Origin", "*");
-        options_res.set("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
-        options_res.set("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Requested-With");
+        options_res->set("Access-Control-Allow-Origin", "*");
+        options_res->set("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
+        options_res->set("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Requested-With");
 
-        options_res.prepare_payload();
+        options_res->prepare_payload();
         auto self = shared_from_this();
-        http::async_write(socket_, options_res,
-            [self, cors](beast::error_code ec, std::size_t) {
+        http::async_write(socket_, *options_res,
+            [self, cors, options_res](beast::error_code ec, std::size_t) {
                 if (ec) {
                     return;
                 }
