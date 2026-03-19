@@ -5,6 +5,7 @@
 /// \version 0.9.24
 /// \note This is a source file for the modeling_whisper class
 #include "whisper/modeling_whisper.hpp"
+#include "whisper/language_table.hpp"
 
 
 Whisper::Whisper(xrt::device* npu_device_inst){
@@ -108,7 +109,7 @@ bool Whisper::load_audio(std::vector<uint8_t>& audio_data) {
     return true;
 }
 
-std::pair<std::string, std::string> Whisper::generate(whisper_task_type_t task, bool enable_time_stamp, bool return_time_stamp, std::ostream& os) {
+std::pair<std::string, std::string> Whisper::generate(whisper_task_type_t task, bool enable_time_stamp, bool return_time_stamp, std::ostream& os, const std::string& forced_language) {
     int length = this->audio_buffer.size();
     int current_idx = 0;
     int overlapping_samples = 5 * FS; // 
@@ -147,16 +148,26 @@ std::pair<std::string, std::string> Whisper::generate(whisper_task_type_t task, 
         last_idx = start_of_transcript; // the first token is fixed
         buffer<bf16> logits = this->whisper_engine->decode_audio(last_idx);
         last_idx = this->_sample_in_language(logits);
-      
-        // std::cout << "Language detected: " << this->tokenizer->run_time_decoder(last_idx) << "(" << langmap::to_language_name(this->tokenizer->run_time_decoder(last_idx)) << ")" << std::endl;
+
+        // Override with forced language if specified
+        if (!forced_language.empty()) {
+            std::string lang_token = langmap::language_code_to_token(forced_language);
+            if (!lang_token.empty()) {
+                // Find the token ID for this language by checking against the tokenizer
+                for (int tid = 50259; tid <= 50358; tid++) {
+                    if (this->tokenizer->run_time_decoder(tid) == lang_token) {
+                        last_idx = tid;
+                        break;
+                    }
+                }
+            }
+        }
+
         language_detected = this->tokenizer->run_time_decoder(last_idx);
 
         if (task == e_translate) {
-            //header_print("info", "translate is not supported! Do transcribe instead!");
-            //task = e_transcribe;
-            //buffer<bf16> logits = this->whisper_engine->decode_audio(50259); // en
-            //logits = this->whisper_engine->decode_audio(translate_token);
-            //last_idx = this->_sample_in_time_stamp(logits);
+            buffer<bf16> logits = this->whisper_engine->decode_audio(translate_token);
+            last_idx = this->_sample_in_time_stamp(logits);
         }
         else if (task == e_transcribe) {
             buffer<bf16> logits = this->whisper_engine->decode_audio(transcribe_token);

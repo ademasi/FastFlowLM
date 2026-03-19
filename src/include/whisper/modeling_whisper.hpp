@@ -247,6 +247,6 @@ public:
     //void toggle_enable_think() override;
     bool load_audio(std::string& audio_path);
     bool load_audio(std::vector<uint8_t>& audio_data);
-    std::pair<std::string, std::string> generate(whisper_task_type_t task, bool enable_time_stamp, bool return_time_stamp, std::ostream& os);
+    std::pair<std::string, std::string> generate(whisper_task_type_t task, bool enable_time_stamp, bool return_time_stamp, std::ostream& os, const std::string& forced_language = "");
     void setup_tokenizer(std::string model_path);
 };
