@@ -186,23 +186,43 @@ class model_list {
         nlohmann::json get_all_models_openai() {
             nlohmann::json response = {
                 {"object", "list"},
-                {"data", nlohmann::json::array()},
-                {"object", "list" }
+                {"data", nlohmann::json::array()}
             };
 
             std::time_t now = std::time(nullptr);
 
             for (const auto& [model_type, model_subset] : this->config["models"].items()) {
-                if (model_type == "whisper-v3") continue;
-                else if (model_type == "embed-gemma") continue;
                 for (const auto& [size, model_info] : model_subset.items()) {
-                    // id uses the same "type:size" convention; created uses current epoch seconds
                     nlohmann::json model_entry = {
                         {"id", model_type + ":" + size},
                         {"object", "model"},
                         {"created", static_cast<long long>(now)},
                         {"owned_by", "FastFlowLM"}
                     };
+
+                    // Add capabilities from model metadata
+                    nlohmann::json capabilities = nlohmann::json::array();
+                    if (model_type.find("whisper") != std::string::npos) {
+                        capabilities.push_back("asr");
+                        capabilities.push_back("translation");
+                    } else if (model_type.find("embed") != std::string::npos) {
+                        capabilities.push_back("embedding");
+                    } else {
+                        capabilities.push_back("chat");
+                        if (model_info.contains("vlm") && model_info["vlm"].get<bool>())
+                            capabilities.push_back("vision");
+                        if (model_info.contains("details") && model_info["details"].contains("think")
+                            && model_info["details"]["think"].get<bool>())
+                            capabilities.push_back("reasoning");
+                    }
+                    model_entry["capabilities"] = capabilities;
+
+                    // Add context length and parameter size if available
+                    if (model_info.contains("default_context_length"))
+                        model_entry["context_length"] = model_info["default_context_length"];
+                    if (model_info.contains("details") && model_info["details"].contains("parameter_size"))
+                        model_entry["parameter_size"] = model_info["details"]["parameter_size"];
+
                     response["data"].push_back(model_entry);
                 }
             }
