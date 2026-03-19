@@ -246,9 +246,38 @@ void Runner::run() {
 
                 header_print("FLM", "Loading file: " << filename);
                 std::cout << std::endl;
-                if (filename.find(".jpg") != std::string::npos || filename.find(".png") != std::string::npos || filename.find(".jpeg") != std::string::npos) {
+                if (filename.find(".jpg") != std::string::npos || filename.find(".png") != std::string::npos || filename.find(".jpeg") != std::string::npos
+                    || filename.find(".webp") != std::string::npos || filename.find(".bmp") != std::string::npos || filename.find(".tiff") != std::string::npos || filename.find(".tif") != std::string::npos) {
                     uniformed_input.images.push_back(filename);
                     uniformed_input.image_payload_types.push_back(FILE_NAME);
+                }
+                else if (filename.find(".pdf") != std::string::npos) {
+                    // Convert PDF pages to PNG images using pdftoppm
+                    if (!std::filesystem::exists(filename)) {
+                        header_print("FLM", "Error: Could not open file: " << filename);
+                        continue;
+                    }
+                    std::string tmp_prefix = "/tmp/flm_pdf_" + std::to_string(std::hash<std::string>{}(filename));
+                    std::string cmd = "pdftoppm -png -r 150 \"" + filename + "\" \"" + tmp_prefix + "\" 2>/dev/null";
+                    int ret = system(cmd.c_str());
+                    if (ret != 0) {
+                        header_print("FLM", "Error: pdftoppm failed. Is poppler-utils installed?");
+                        continue;
+                    }
+                    // Collect generated page images
+                    std::vector<std::string> pages;
+                    for (const auto& entry : std::filesystem::directory_iterator("/tmp")) {
+                        std::string p = entry.path().string();
+                        if (p.find(tmp_prefix.substr(5)) != std::string::npos && p.find(".png") != std::string::npos) {
+                            pages.push_back(p);
+                        }
+                    }
+                    std::sort(pages.begin(), pages.end());
+                    header_print("FLM", "PDF loaded: " << pages.size() << " page(s)");
+                    for (const auto& page : pages) {
+                        uniformed_input.images.push_back(page);
+                        uniformed_input.image_payload_types.push_back(FILE_NAME);
+                    }
                 }
                 else if (filename.find(".wav") != std::string::npos || filename.find(".mp3") != std::string::npos || filename.find(".ogg") != std::string::npos || filename.find(".m4a") != std::string::npos) {
 #ifndef FASTFLOWLM_LINUX_LIMITED_MODELS
