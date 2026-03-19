@@ -159,6 +159,10 @@ static bool has_basic_image_integrity(const uint8_t* data, size_t size, int code
     if (codec_id == AV_CODEC_ID_MJPEG) {
         return has_valid_jpeg_structure(data, size);
     }
+    // WebP, BMP, TIFF — header detection is sufficient, FFmpeg handles validation
+    if (codec_id == AV_CODEC_ID_WEBP || codec_id == AV_CODEC_ID_BMP || codec_id == AV_CODEC_ID_TIFF) {
+        return true;
+    }
     return false;
 }
 
@@ -361,6 +365,23 @@ bool ImageReader::parse_image_header(const uint8_t* data, size_t size, int& code
         codec_id = AV_CODEC_ID_PNG;
         return true;
     }
+    // WebP: "RIFF" header + "WEBP" at offset 8
+    if (size >= 12 && data[0] == 'R' && data[1] == 'I' && data[2] == 'F' && data[3] == 'F'
+        && data[8] == 'W' && data[9] == 'E' && data[10] == 'B' && data[11] == 'P') {
+        codec_id = AV_CODEC_ID_WEBP;
+        return true;
+    }
+    // BMP: "BM" header
+    if (size >= 2 && data[0] == 'B' && data[1] == 'M') {
+        codec_id = AV_CODEC_ID_BMP;
+        return true;
+    }
+    // TIFF: "II" (little-endian) or "MM" (big-endian) + magic 42
+    if (size >= 4 && ((data[0] == 'I' && data[1] == 'I' && data[2] == 0x2A && data[3] == 0x00)
+        || (data[0] == 'M' && data[1] == 'M' && data[2] == 0x00 && data[3] == 0x2A))) {
+        codec_id = AV_CODEC_ID_TIFF;
+        return true;
+    }
     return false;
 }
 
@@ -368,7 +389,7 @@ bool ImageReader::decode_bytes(const uint8_t* data, size_t size, image_data_t& o
     int codec_id = AV_CODEC_ID_NONE;
     // header_print_g("DEBUG", "Decoding image of size: " << std::to_string(size) << " bytes");
     if (!parse_image_header(data, size, codec_id)) {
-        std::cerr << "Error: Unsupported image format (only JPEG/JPG and PNG supported)" << std::endl;
+        std::cerr << "Error: Unsupported image format (supported: JPEG, PNG, WebP, BMP, TIFF)" << std::endl;
         return false;
     }
 
