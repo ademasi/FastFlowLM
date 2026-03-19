@@ -154,10 +154,11 @@ int NPUAccessManager::get_active_npu_requests() {
 bool requires_npu_access(const std::string& method, const std::string& path) {
     // NPU-intensive endpoints that should be restricted to one user at a time
     if (method == "POST") {
-        return path == "/api/generate" || 
-               path == "/api/chat" || 
+        return path == "/api/generate" ||
+               path == "/api/chat" ||
                path == "/v1/chat/completions" ||
                path == "/v1/audio/transcriptions" ||
+               path == "/v1/audio/translations" ||
                path == "/v1/embeddings";
     }
     return false;
@@ -910,6 +911,20 @@ std::unique_ptr<WebServer> create_lm_server(model_list& models, ModelDownloader&
             send_response(response);
         });
     
+    // Model unload endpoint
+    server->register_handler("DELETE", "/api/delete",
+        [rest_handler](const http::request<http::string_body>& req,
+                      std::function<void(const json&)> send_response,
+                      std::function<void(const json&, bool)> send_streaming_response,
+                      std::shared_ptr<HttpSession> session,
+                      std::shared_ptr<CancellationToken> cancellation_token) {
+            json request_json;
+            if (!req.body().empty()) {
+                request_json = json::parse(req.body());
+            }
+            rest_handler->handle_delete(request_json, send_response, send_streaming_response);
+        });
+
     // Add other endpoints...
     server->register_handler("POST", "/api/pull",
         [rest_handler](const http::request<http::string_body>& req,
@@ -924,6 +939,21 @@ std::unique_ptr<WebServer> create_lm_server(model_list& models, ModelDownloader&
             rest_handler->handle_pull(request_json, send_response, send_streaming_response);
         });
     
+    // Health check endpoint
+    server->register_handler("GET", "/health",
+        [rest_handler](const http::request<http::string_body>& req,
+            std::function<void(const json&)> send_response,
+            std::function<void(const json&, bool)> send_streaming_response,
+            std::shared_ptr<HttpSession> session,
+            std::shared_ptr<CancellationToken> cancellation_token) {
+                json response = {
+                    {"status", "ok"},
+                    {"npu_available", NPUAccessManager::is_npu_available()},
+                    {"active_requests", NPUAccessManager::get_active_npu_requests()}
+                };
+                send_response(response);
+        });
+
     // Add OpenAI endpoints
     server->register_handler("GET", "/v1/version",
         [rest_handler](const http::request<http::string_body>& req,
@@ -981,7 +1011,28 @@ std::unique_ptr<WebServer> create_lm_server(model_list& models, ModelDownloader&
                 json request_json;
                 request_json["model"] = parts["model"].content;
                 request_json["file"] = parts["file"].content;
+                if (parts.count("response_format"))
+                    request_json["response_format"] = parts["response_format"].content;
+                if (parts.count("language"))
+                    request_json["language"] = parts["language"].content;
                 rest_handler->handle_openai_audio_transcriptions(request_json, send_response, send_streaming_response, cancellation_token);
+        });
+
+    server->register_handler("POST", "/v1/audio/translations",
+        [rest_handler](const http::request<http::string_body>& req,
+            std::function<void(const json&)> send_response,
+            std::function<void(const json&, bool)> send_streaming_response,
+            std::shared_ptr<HttpSession> session,
+            std::shared_ptr<CancellationToken> cancellation_token) {
+                std::map<std::string, MultipartPart> parts = parse_multipart(req);
+                json request_json;
+                request_json["model"] = parts["model"].content;
+                request_json["file"] = parts["file"].content;
+                if (parts.count("response_format"))
+                    request_json["response_format"] = parts["response_format"].content;
+                if (parts.count("language"))
+                    request_json["language"] = parts["language"].content;
+                rest_handler->handle_openai_audio_translations(request_json, send_response, send_streaming_response, cancellation_token);
         });
 
     server->register_handler("POST", "/v1/completions",

@@ -13,6 +13,7 @@
 #include "image/image_reader.hpp"
 #include <sstream>
 #include <iostream>
+#include <regex>
 #include <thread>
 #include <chrono>
 #include <iomanip>
@@ -115,7 +116,10 @@ static json normalize_template(json messages) {
                     const std::vector<std::string> prefixes = {
                         "data:image/png;base64,",
                         "data:image/jpeg;base64,",
-                        "data:image/jpg;base64,"
+                        "data:image/jpg;base64,",
+                        "data:image/webp;base64,",
+                        "data:image/bmp;base64,",
+                        "data:image/tiff;base64,"
                     };
                     for (const auto& prefix : prefixes) {
                         if (image_url.substr(0, prefix.length()) == prefix) {
@@ -821,8 +825,45 @@ void RestHandler::handle_push(const json& request,
 void RestHandler::handle_delete(const json& request,
                                std::function<void(const json&)> send_response,
                                StreamResponseCallback send_streaming_response) {
-    json error_response = {{"error", "Delete operation not implemented"}};
-    send_response(error_response);
+    try {
+        std::string model = request.value("model", request.value("name", ""));
+        if (model.empty()) {
+            send_response({{"error", "model name required"}});
+            return;
+        }
+
+        bool unloaded = false;
+        if (model == current_model_tag && auto_chat_engine) {
+            auto_chat_engine.reset();
+            current_model_tag = "";
+            unloaded = true;
+            header_print("FLM", "Unloaded chat model: " + model);
+        }
+#ifndef FASTFLOWLM_LINUX_LIMITED_MODELS
+        if (model.find("whisper") != std::string::npos && whisper_engine) {
+            whisper_engine.reset();
+            asr = false;
+            unloaded = true;
+            header_print("FLM", "Unloaded ASR model");
+        }
+        if (model.find("embed") != std::string::npos && auto_embedding_engine) {
+            auto_embedding_engine.reset();
+            embed = false;
+            unloaded = true;
+            header_print("FLM", "Unloaded embedding model");
+        }
+#endif
+
+        json response = {
+            {"status", unloaded ? "success" : "model not found"},
+            {"model", model}
+        };
+        send_response(response);
+    }
+    catch (const std::exception& e) {
+        json error_response = {{"error", e.what()}};
+        send_response(error_response);
+    }
 }
 
 ///@brief Handle the copy request
@@ -1053,56 +1094,127 @@ void RestHandler::handle_openai_chat_completion(const json& request,
     }
 }
 
-///@brief Handle the openai audio transcriptions request
-///@param request the request
-///@param send_response the send response
-///@param send_streaming_response the send streaming response
-void RestHandler::handle_openai_audio_transcriptions(const json& request,
-                                        std::function<void(const json&)> send_response,
-                                        StreamResponseCallback send_streaming_response,
-                                        std::shared_ptr<CancellationToken> cancellation_token) {
+static std::string format_time_srt(float seconds) {
+    int h = (int)(seconds / 3600);
+    int m = (int)(fmod(seconds, 3600) / 60);
+    int s = (int)(fmod(seconds, 60));
+    int ms = (int)((seconds - floor(seconds)) * 1000);
+    char buf[32];
+    snprintf(buf, sizeof(buf), "%02d:%02d:%02d,%03d", h, m, s, ms);
+    return buf;
+}
+
+static std::string format_time_vtt(float seconds) {
+    int h = (int)(seconds / 3600);
+    int m = (int)(fmod(seconds, 3600) / 60);
+    int s = (int)(fmod(seconds, 60));
+    int ms = (int)((seconds - floor(seconds)) * 1000);
+    char buf[32];
+    snprintf(buf, sizeof(buf), "%02d:%02d:%02d.%03d", h, m, s, ms);
+    return buf;
+}
+
+///@brief Shared handler for whisper transcription and translation
+void RestHandler::handle_whisper_task(Whisper::whisper_task_type_t task,
+                                      const json& request,
+                                      std::function<void(const json&)> send_response,
+                                      StreamResponseCallback send_streaming_response,
+                                      std::shared_ptr<CancellationToken> cancellation_token) {
     try {
         std::string model = request["model"];
         std::string file_content = request["file"].get<std::string>();
         std::vector<uint8_t> audio_raw(file_content.begin(), file_content.end());
-        bool stream = request.value("stream", false);
+        std::string response_format = request.value("response_format", "json");
+        std::string forced_language = request.value("language", "");
+        bool return_timestamps = (response_format == "verbose_json" ||
+                                  response_format == "srt" ||
+                                  response_format == "vtt");
         json response;
         if (this->asr) {
 #ifndef FASTFLOWLM_LINUX_LIMITED_MODELS
             this->whisper_engine->load_audio(audio_raw);
-            header_print("FLM", "Transforming audio to text...");
-            // Show text
+            std::string task_name = (task == Whisper::whisper_task_type_t::e_translate) ? "Translating" : "Transcribing";
+            header_print("FLM", task_name + " audio to text...");
             std::cout << "Audio content: " << std::flush;
-            std::pair<std::string, std::string> audio_result = this->whisper_engine->generate(Whisper::whisper_task_type_t::e_transcribe, true, false, std::cout);
+            std::pair<std::string, std::string> audio_result = this->whisper_engine->generate(
+                task, true, return_timestamps, std::cout, forced_language);
             std::string audio_context = audio_result.first;
+            std::string language = audio_result.second;
             std::cout << std::endl;
 #else
             throw std::runtime_error("ASR models are not supported in this build");
             std::string audio_context;
+            std::string language;
 #endif
 
-            response = {
-                {"model", model},
-                {"text", audio_context}
-                //{"usage", {
-                //    {"type", "tokens"},
-                //    {"input_tokens", 0},
-                //    {"input_tokens_details", json::array({
-                //        {
-                //            {"text_tokens", 0},
-                //            {"audio_tokens", 0}
-                //        }
-                //    })},
-                //    {"output_tokens", 0},
-                //    {"total_tokens", 0}
-                //}}
-            };
+            if (return_timestamps) {
+                // Parse "<|0.00|>text<|2.50|><|2.50|>more text<|5.00|>" into segments
+                json segments = json::array();
+                std::string raw = audio_context;
+                std::regex seg_re("<\\|([0-9]+\\.?[0-9]*)\\|>(.*?)<\\|([0-9]+\\.?[0-9]*)\\|>");
+                std::sregex_iterator it(raw.begin(), raw.end(), seg_re);
+                std::sregex_iterator end;
+                int seg_id = 0;
+                std::string plain_text;
+                for (; it != end; ++it) {
+                    std::smatch match = *it;
+                    float start = std::stof(match[1].str());
+                    std::string text = match[2].str();
+                    float seg_end = std::stof(match[3].str());
+                    if (!text.empty()) {
+                        segments.push_back({
+                            {"id", seg_id++},
+                            {"start", start},
+                            {"end", seg_end},
+                            {"text", text}
+                        });
+                        plain_text += text;
+                    }
+                }
+
+                if (response_format == "srt") {
+                    std::string srt_output;
+                    for (size_t i = 0; i < segments.size(); i++) {
+                        srt_output += std::to_string(i + 1) + "\n";
+                        srt_output += format_time_srt(segments[i]["start"].get<float>())
+                                   + " --> "
+                                   + format_time_srt(segments[i]["end"].get<float>()) + "\n";
+                        srt_output += segments[i]["text"].get<std::string>() + "\n\n";
+                    }
+                    response = {{"text", srt_output}};
+                } else if (response_format == "vtt") {
+                    std::string vtt_output = "WEBVTT\n\n";
+                    for (size_t i = 0; i < segments.size(); i++) {
+                        vtt_output += format_time_vtt(segments[i]["start"].get<float>())
+                                   + " --> "
+                                   + format_time_vtt(segments[i]["end"].get<float>()) + "\n";
+                        vtt_output += segments[i]["text"].get<std::string>() + "\n\n";
+                    }
+                    response = {{"text", vtt_output}};
+                } else {
+                    // verbose_json
+                    response = {
+                        {"model", model},
+                        {"language", language},
+                        {"text", plain_text},
+                        {"segments", segments}
+                    };
+                }
+            } else if (response_format == "text") {
+                response = {{"text", audio_context}};
+            } else {
+                // json (default)
+                response = {
+                    {"model", model},
+                    {"language", language},
+                    {"text", audio_context}
+                };
+            }
         }
         else {
             header_print("Warning", "No asr model loaded, cannot load audio file");
         }
         send_response(response);
-        //this->whisper_engine->clear_context();
     }
     catch (const std::exception& e) {
         json error_response = {
@@ -1114,6 +1226,22 @@ void RestHandler::handle_openai_audio_transcriptions(const json& request,
         };
         send_response(error_response);
     }
+}
+
+///@brief Handle the openai audio transcriptions request
+void RestHandler::handle_openai_audio_transcriptions(const json& request,
+                                        std::function<void(const json&)> send_response,
+                                        StreamResponseCallback send_streaming_response,
+                                        std::shared_ptr<CancellationToken> cancellation_token) {
+    handle_whisper_task(Whisper::whisper_task_type_t::e_transcribe, request, send_response, send_streaming_response, cancellation_token);
+}
+
+///@brief Handle the openai audio translations request
+void RestHandler::handle_openai_audio_translations(const json& request,
+                                        std::function<void(const json&)> send_response,
+                                        StreamResponseCallback send_streaming_response,
+                                        std::shared_ptr<CancellationToken> cancellation_token) {
+    handle_whisper_task(Whisper::whisper_task_type_t::e_translate, request, send_response, send_streaming_response, cancellation_token);
 }
 
 ///@brief Handle the openai completion request

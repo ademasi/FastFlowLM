@@ -102,6 +102,10 @@ public:
                                       std::function<void(const json&)> send_response,
                                       StreamResponseCallback send_streaming_response,
                                       std::shared_ptr<CancellationToken> cancellation_token = nullptr);
+    void handle_openai_audio_translations(const json& request,
+                                      std::function<void(const json&)> send_response,
+                                      StreamResponseCallback send_streaming_response,
+                                      std::shared_ptr<CancellationToken> cancellation_token = nullptr);
     void handle_openai_completion(const json& request,
         std::function<void(const json&)> send_response,
         StreamResponseCallback send_streaming_response,
@@ -112,6 +116,13 @@ private:
     void ensure_asr_model_loaded(const std::string& model_tag);
     void ensure_embed_model_loaded(const std::string& model_tag);
     void configure_chat_engine_parameters(const json& options, const json& request);
+#ifndef FASTFLOWLM_LINUX_LIMITED_MODELS
+    void handle_whisper_task(Whisper::whisper_task_type_t task,
+                            const json& request,
+                            std::function<void(const json&)> send_response,
+                            StreamResponseCallback send_streaming_response,
+                            std::shared_ptr<CancellationToken> cancellation_token = nullptr);
+#endif
     json build_nstream_response(std::string response_text);
 
 
