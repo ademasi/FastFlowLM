@@ -120,4 +120,40 @@ inline std::string to_language_name(const std::string& token) {
     return "Unknown";
 }
 
+/// Map ISO-639-1 language codes to Whisper token strings
+static const std::unordered_map<std::string, std::string> CODE_TO_TOKEN = {
+    {"en", "<|en|>"}, {"zh", "<|zh|>"}, {"de", "<|de|>"}, {"es", "<|es|>"},
+    {"ru", "<|ru|>"}, {"ko", "<|ko|>"}, {"fr", "<|fr|>"}, {"ja", "<|ja|>"},
+    {"pt", "<|pt|>"}, {"tr", "<|tr|>"}, {"pl", "<|pl|>"}, {"ca", "<|ca|>"},
+    {"nl", "<|nl|>"}, {"ar", "<|ar|>"}, {"sv", "<|sv|>"}, {"it", "<|it|>"},
+    {"id", "<|id|>"}, {"hi", "<|hi|>"}, {"fi", "<|fi|>"}, {"vi", "<|vi|>"},
+    {"he", "<|he|>"}, {"uk", "<|uk|>"}, {"el", "<|el|>"}, {"ms", "<|ms|>"},
+    {"cs", "<|cs|>"}, {"ro", "<|ro|>"}, {"da", "<|da|>"}, {"hu", "<|hu|>"},
+    {"ta", "<|ta|>"}, {"no", "<|no|>"}, {"th", "<|th|>"}, {"ur", "<|ur|>"},
+    {"hr", "<|hr|>"}, {"bg", "<|bg|>"}, {"lt", "<|lt|>"}, {"la", "<|la|>"},
+    {"mi", "<|mi|>"}, {"ml", "<|ml|>"}, {"cy", "<|cy|>"}, {"sk", "<|sk|>"},
+    {"te", "<|te|>"}, {"fa", "<|fa|>"}, {"lv", "<|lv|>"}, {"bn", "<|bn|>"},
+    {"sr", "<|sr|>"}, {"az", "<|az|>"}, {"sl", "<|sl|>"}, {"kn", "<|kn|>"},
+    {"et", "<|et|>"}, {"mk", "<|mk|>"}, {"br", "<|br|>"}, {"eu", "<|eu|>"},
+    {"is", "<|is|>"}, {"hy", "<|hy|>"}, {"ne", "<|ne|>"}, {"mn", "<|mn|>"},
+    {"bs", "<|bs|>"}, {"kk", "<|kk|>"}, {"sq", "<|sq|>"}, {"sw", "<|sw|>"},
+    {"gl", "<|gl|>"}, {"mr", "<|mr|>"}, {"pa", "<|pa|>"}, {"si", "<|si|>"},
+    {"km", "<|km|>"}, {"sn", "<|sn|>"}, {"yo", "<|yo|>"}, {"so", "<|so|>"},
+    {"af", "<|af|>"}, {"oc", "<|oc|>"}, {"ka", "<|ka|>"}, {"be", "<|be|>"},
+    {"tg", "<|tg|>"}, {"sd", "<|sd|>"}, {"gu", "<|gu|>"}, {"am", "<|am|>"},
+    {"yi", "<|yi|>"}, {"lo", "<|lo|>"}, {"uz", "<|uz|>"}, {"fo", "<|fo|>"},
+    {"ht", "<|ht|>"}, {"ps", "<|ps|>"}, {"tk", "<|tk|>"}, {"nn", "<|nn|>"},
+    {"mt", "<|mt|>"}, {"sa", "<|sa|>"}, {"lb", "<|lb|>"}, {"my", "<|my|>"},
+    {"bo", "<|bo|>"}, {"tl", "<|tl|>"}, {"mg", "<|mg|>"}, {"as", "<|as|>"},
+    {"tt", "<|tt|>"}, {"haw", "<|haw|>"}, {"ln", "<|ln|>"}, {"ha", "<|ha|>"},
+    {"ba", "<|ba|>"}, {"jw", "<|jw|>"}, {"su", "<|su|>"}, {"yue", "<|yue|>"}
+};
+
+inline std::string language_code_to_token(const std::string& code) {
+    auto it = CODE_TO_TOKEN.find(code);
+    if (it != CODE_TO_TOKEN.end())
+        return it->second;
+    return "";
+}
+
 }  // namespace langmap
