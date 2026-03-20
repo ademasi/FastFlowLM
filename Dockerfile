@@ -7,12 +7,23 @@ LABEL org.opencontainers.image.source="https://github.com/FastFlowLM/FastFlowLM"
 # Prevent interactive prompts during installation
 ENV DEBIAN_FRONTEND=noninteractive
 ARG UBUNTU_PPA=""
+ARG BACKPORTS=""
+
+# Set up PPA if needed
+RUN if [ -n "$UBUNTU_PPA" ]; then \
+        apt update && apt install -y software-properties-common && \
+        add-apt-repository -y "$UBUNTU_PPA"; \
+    fi
+
+# setup backports if needed
+RUN if [ -n "$BACKPORTS" ]; then \
+        echo "deb http://deb.debian.org/debian $BACKPORTS main" >> /etc/apt/sources.list; \
+        apt update; \
+        apt install -t $BACKPORTS -y libxrt-dev; \
+    fi
 
 # Install all build dependencies
 RUN apt update && apt install -y \
-    software-properties-common \
-    && if [ -n "$UBUNTU_PPA" ]; then add-apt-repository -y "$UBUNTU_PPA"; fi \
-    && apt update && apt install -y \
     build-essential \
     cargo \
     cmake \
