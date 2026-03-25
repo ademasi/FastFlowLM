@@ -36,7 +36,7 @@
                 "url": "https://huggingface.co/FastFlowLM/Qwen3.5-2B-NPU2",
                 "file_url": "https://huggingface.co/api/models/FastFlowLM/Qwen3.5-2B-NPU2/tree/main",
                 "size": 2000000000,
-                "flm_min_version": "0.9.36",
+                "flm_min_version": "0.9.37",
                 "files": [
                     "config.json",
                     "model.q4nx",
@@ -57,7 +57,7 @@
                 "label": [
                     "vision"
                 ],
-                "footprint": 3.9
+                "footprint": 3.2
             },
             "4b": {
                 "name": "Qwen3.5-4B-NPU2",
@@ -85,7 +85,35 @@
                 "label": [
                     "vision"
                 ],
-                "footprint": 3.9
+                "footprint": 5.2
+            },
+            "9b":{
+                "name": "Qwen3.5-9B-NPU2",
+                "url": "https://huggingface.co/FastFlowLM/Qwen3.5-9B-NPU2",
+                "file_url": "https://huggingface.co/api/models/FastFlowLM/Qwen3.5-9B-NPU2/tree/main",
+                "size": 9000000000,
+                "flm_min_version": "0.9.37",
+                "files": [
+                    "config.json",
+                    "model.q4nx",
+                    "tokenizer.json",
+                    "tokenizer_config.json",
+                    "vision_weight.q4nx",
+                    "chat_template.jinja"
+                ],
+                "vlm": true,
+                "default_context_length": 32768,
+                "details": {
+                    "format": "NPU2",
+                    "family": "qwen3.5",
+                    "think": true,
+                    "parameter_size": "9B",
+                    "quantization_level": "Q4_1"
+                },
+                "label": [
+                    "vision"
+                ],
+                "footprint": 8.94
             }
         },        
         "lfm2": {
