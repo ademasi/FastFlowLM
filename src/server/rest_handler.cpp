@@ -1126,6 +1126,7 @@ void RestHandler::handle_whisper_task(Whisper::whisper_task_type_t task,
         std::vector<uint8_t> audio_raw(file_content.begin(), file_content.end());
         std::string response_format = request.value("response_format", "json");
         std::string forced_language = request.value("language", "");
+        bool stream = request.value("stream", false);
         bool return_timestamps = (response_format == "verbose_json" ||
                                   response_format == "srt" ||
                                   response_format == "vtt");
@@ -1136,6 +1137,32 @@ void RestHandler::handle_whisper_task(Whisper::whisper_task_type_t task,
             std::string task_name = (task == Whisper::whisper_task_type_t::e_translate) ? "Translating" : "Transcribing";
             header_print("FLM", task_name + " audio to text...");
             std::cout << "Audio content: " << std::flush;
+
+            if (stream) {
+                // SSE streaming mode — send each segment as it completes
+                std::string full_text;
+                auto audio_result = this->whisper_engine->generate_streaming(
+                    task, std::cout, forced_language,
+                    [&](int seg_id, float start, float end, const std::string& text, const std::string& language) {
+                        json seg_data = {
+                            {"id", seg_id},
+                            {"start", start},
+                            {"end", end},
+                            {"text", text},
+                            {"language", language},
+                            {"model", model}
+                        };
+                        std::string sse = "data: " + seg_data.dump() + "\n\n";
+                        send_streaming_response(json(sse), false);
+                        full_text += text;
+                    });
+                std::cout << std::endl;
+                // Send final SSE event
+                std::string done = "data: [DONE]\n\n";
+                send_streaming_response(json(done), true);
+                return;
+            }
+
             std::pair<std::string, std::string> audio_result = this->whisper_engine->generate(
                 task, true, return_timestamps, std::cout, forced_language);
             std::string audio_context = audio_result.first;

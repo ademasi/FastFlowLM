@@ -258,6 +258,137 @@ std::pair<std::string, std::string> Whisper::generate(whisper_task_type_t task, 
     return std::make_pair(result, langmap::to_language_name(language_detected));
 }
 
+std::pair<std::string, std::string> Whisper::generate_streaming(
+    whisper_task_type_t task, std::ostream& os, const std::string& forced_language,
+    SegmentCallback on_segment) {
+
+    int length = this->audio_buffer.size();
+    int current_idx = 0;
+    int overlapping_samples = 5 * FS;
+    int l_this_round = std::min(WINDOW_SAMPLES, length);
+    int last_time_stamp = this->token_time_map_offset;
+    int last_idx;
+    std::string full_text;
+    std::string language_detected;
+    int segment_id = 0;
+
+    while (current_idx < length) {
+        bool allow_force_time_stamp = true;
+        float time_offset = _S2T_(current_idx);
+
+        if (l_this_round == 0) break;
+
+        std::vector<float> audio_chunk(l_this_round);
+        audio_chunk.insert(audio_chunk.begin(), this->audio_buffer.data() + current_idx,
+                           this->audio_buffer.data() + current_idx + l_this_round);
+
+        _preprocess_audio(mel_feature, audio_chunk);
+        this->whisper_engine->encode_audio(mel_feature);
+        this->whisper_engine->clear_context();
+        this->sampler->reset_penalties();
+
+        last_idx = start_of_transcript;
+        buffer<bf16> logits = this->whisper_engine->decode_audio(last_idx);
+        last_idx = this->_sample_in_language(logits);
+
+        if (!forced_language.empty()) {
+            std::string lang_token = langmap::language_code_to_token(forced_language);
+            if (!lang_token.empty()) {
+                for (int tid = 50259; tid <= 50358; tid++) {
+                    if (this->tokenizer->run_time_decoder(tid) == lang_token) {
+                        last_idx = tid;
+                        break;
+                    }
+                }
+            }
+        }
+
+        language_detected = this->tokenizer->run_time_decoder(last_idx);
+
+        if (task == e_translate) {
+            buffer<bf16> logits2 = this->whisper_engine->decode_audio(translate_token);
+            last_idx = this->_sample_in_time_stamp(logits2);
+        } else if (task == e_transcribe) {
+            buffer<bf16> logits2 = this->whisper_engine->decode_audio(transcribe_token);
+            last_idx = this->_sample_in_time_stamp(logits2);
+        }
+
+        // Track current segment
+        float seg_start = 0;
+        std::string seg_text;
+        bool have_start = false;
+
+        if (_is_time_stemp(last_idx)) {
+            std::string ts = this->tokenizer->run_time_decoder(last_idx);
+            std::string ots = this->_offset_time_stamp(ts, time_offset);
+            float t;
+            sscanf(ots.c_str(), "<|%f|>", &t);
+            seg_start = t;
+            have_start = true;
+        }
+
+        int watching_dog = 16;
+        for (int i = 0; i < 448 - 3; i++) {
+            buffer<bf16> logits3 = this->whisper_engine->decode_audio(last_idx);
+            if (watching_dog == 0 && allow_force_time_stamp) {
+                last_idx = this->_sample_in_time_stamp(logits3);
+                watching_dog = 16;
+            } else {
+                last_idx = this->sampler->sample(logits3);
+                if (watching_dog > 0) watching_dog--;
+            }
+            std::string token_str = this->tokenizer->run_time_decoder(last_idx);
+
+            if (_is_normal_token(last_idx)) {
+                os << token_str << std::flush;
+                seg_text += token_str;
+                full_text += token_str;
+            } else if (_is_time_stemp(last_idx)) {
+                std::string ots = this->_offset_time_stamp(token_str, time_offset);
+                float t;
+                sscanf(ots.c_str(), "<|%f|>", &t);
+
+                // End of segment — emit callback
+                if (have_start && !seg_text.empty()) {
+                    on_segment(segment_id++, seg_start, t,
+                               seg_text, langmap::to_language_name(language_detected));
+                    seg_text.clear();
+                }
+                seg_start = t;
+                have_start = true;
+                last_time_stamp = last_idx;
+                watching_dog = 16;
+            }
+
+            if (last_idx == 50257) break;
+
+            if (!_is_valid_utf8(token_str)) {
+                allow_force_time_stamp = false;
+            } else {
+                allow_force_time_stamp = true;
+            }
+        }
+
+        // Flush remaining text as segment
+        if (have_start && !seg_text.empty()) {
+            float end_time = _S2T_(current_idx + l_this_round);
+            on_segment(segment_id++, seg_start, end_time,
+                       seg_text, langmap::to_language_name(language_detected));
+        }
+
+        if (l_this_round < WINDOW_SAMPLES) break;
+
+        float end_time = _get_time(last_time_stamp);
+        if (end_time == 0) end_time = 30;
+        l_this_round = end_time * FS;
+
+        current_idx += l_this_round;
+        l_this_round = std::min(WINDOW_SAMPLES, length - current_idx);
+        l_this_round = std::max(l_this_round, 0);
+    }
+
+    return std::make_pair(full_text, langmap::to_language_name(language_detected));
+}
 
 void Whisper::_build_time_map(){
     this->token_time_map.clear();

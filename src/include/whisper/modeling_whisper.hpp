@@ -248,5 +248,11 @@ public:
     bool load_audio(std::string& audio_path);
     bool load_audio(std::vector<uint8_t>& audio_data);
     std::pair<std::string, std::string> generate(whisper_task_type_t task, bool enable_time_stamp, bool return_time_stamp, std::ostream& os, const std::string& forced_language = "");
+
+    /// Segment callback: (segment_id, start_time, end_time, text, language) -> void
+    using SegmentCallback = std::function<void(int, float, float, const std::string&, const std::string&)>;
+    /// Streaming generate that fires callback per segment
+    std::pair<std::string, std::string> generate_streaming(whisper_task_type_t task, std::ostream& os, const std::string& forced_language, SegmentCallback on_segment);
+
     void setup_tokenizer(std::string model_path);
 };

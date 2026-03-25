@@ -1015,6 +1015,8 @@ std::unique_ptr<WebServer> create_lm_server(model_list& models, ModelDownloader&
                     request_json["response_format"] = parts["response_format"].content;
                 if (parts.count("language"))
                     request_json["language"] = parts["language"].content;
+                if (parts.count("stream"))
+                    request_json["stream"] = (parts["stream"].content == "true" || parts["stream"].content == "1");
                 rest_handler->handle_openai_audio_transcriptions(request_json, send_response, send_streaming_response, cancellation_token);
         });
 
@@ -1032,6 +1034,8 @@ std::unique_ptr<WebServer> create_lm_server(model_list& models, ModelDownloader&
                     request_json["response_format"] = parts["response_format"].content;
                 if (parts.count("language"))
                     request_json["language"] = parts["language"].content;
+                if (parts.count("stream"))
+                    request_json["stream"] = (parts["stream"].content == "true" || parts["stream"].content == "1");
                 rest_handler->handle_openai_audio_translations(request_json, send_response, send_streaming_response, cancellation_token);
         });
 
