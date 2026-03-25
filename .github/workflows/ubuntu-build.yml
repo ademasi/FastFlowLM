@@ -69,8 +69,7 @@ jobs:
 
           chmod +x debian/rules
 
-      - name: Upgrade Rust toolchain (Ubuntu 24.04/ Debian 13 only)
-        if: ${{ matrix.version == '24.04' || matrix.version == '13' }}
+      - name: Upgrade Rust toolchain
         run: |
           apt-get update
           apt-get install -y --no-install-recommends curl ca-certificates
