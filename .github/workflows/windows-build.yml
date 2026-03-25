@@ -1,0 +1,102 @@
+name: Build Windows Package
+
+on:
+  push:
+    branches:
+      - main
+      - windows_zip_workflow
+    tags:
+      - '*'
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  build-windows:
+    runs-on: [self-hosted, windows, x64]
+    
+    defaults:
+      run:
+        working-directory: src
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+          fetch-depth: 0
+          fetch-tags: true
+
+      - name: Configure CMake
+        shell: powershell
+        run: |
+          cmake --preset windows-default
+
+      - name: Build
+        shell: powershell
+        run: |
+          cmake --build --preset windows-default --config Release --parallel
+
+      - name: Package zip
+        shell: powershell
+        run: |
+          $ErrorActionPreference = "Stop"
+
+          $version = $env:GITHUB_REF_NAME -replace '^v', ''
+          if ($env:GITHUB_REF_TYPE -ne "tag") {
+            $shortSha = $env:GITHUB_SHA.Substring(0, 7)
+            $version = "dev-$shortSha"
+          }
+
+          $zipName = "fastflowlm-windows-$version.zip"
+          $dist = "dist"
+
+          if (Test-Path $dist) {
+            Remove-Item $dist -Recurse -Force
+          }
+          if (Test-Path $zipName) {
+            Remove-Item $zipName -Force
+          }
+
+          New-Item -ItemType Directory -Force $dist | Out-Null
+
+          # Main executable
+          Copy-Item -Path .\build\flm.exe -Destination $dist\ -Force
+
+          # Required data assets
+          Copy-Item -Path .\xclbins -Destination $dist\ -Recurse -Force
+          Copy-Item -Path .\model_list.json -Destination $dist\ -Force
+          Copy-Item -Path .\lib\*.dll -Destination $dist\ -Force
+
+          # Compress-Archive -Path $dist\* -DestinationPath $zipName -Force
+
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: fastflowlm-windows-${{ github.sha }}
+          # path: src/fastflowlm-windows-*.zip
+          path: src/dist/
+          if-no-files-found: error
+
+  release:
+    runs-on: ubuntu-latest
+    needs: build-windows
+    if: github.ref_type == 'tag'
+    permissions:
+      contents: write
+
+    steps:
+      - name: Download artifact
+        uses: actions/download-artifact@v4
+        with:
+          path: release-assets
+
+      - name: Upload zip to GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_name }}
+          name: Release ${{ github.ref_name }}
+          files: release-assets/**/*.zip
+          overwrite_files: true
+          fail_on_unmatched_files: true
