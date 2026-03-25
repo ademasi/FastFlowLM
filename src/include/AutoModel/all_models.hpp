@@ -18,6 +18,7 @@
 #include "modeling_qwen2vl.hpp"
 #include "modeling_qwen3vl.hpp"
 #include "modeling_qwen3_5vl.hpp"
+#include "modeling_nanbeige.hpp"
 #include "model_list.hpp"
 #include "nlohmann/json.hpp"
 
@@ -38,6 +39,7 @@ typedef enum {
     lfm2,
     lfm2_5_tk,
     phi4,
+    nanbeige,
     error_whiper,
     error_embedding
 } SupportedModelFamily;
@@ -62,6 +64,7 @@ inline std::pair<std::string, std::unique_ptr<AutoModel>> get_auto_model(const s
         {"lfm2.5-tk", SupportedModelFamily::lfm2_5_tk},
         {"qwen2vl", SupportedModelFamily::qwen2vl},
         {"phi4", SupportedModelFamily::phi4},
+        {"nanbeige", SupportedModelFamily::nanbeige},
         {"whisper-v3", SupportedModelFamily::error_whiper},
         {"embed-gemma", SupportedModelFamily::error_embedding}
     };
@@ -120,6 +123,9 @@ inline std::pair<std::string, std::unique_ptr<AutoModel>> get_auto_model(const s
             break;
         case SupportedModelFamily::lfm2_5_tk:
             auto_chat_engine = std::make_unique<LFM2_5_TK>(npu_device_inst);
+            break;
+        case SupportedModelFamily::nanbeige:
+            auto_chat_engine = std::make_unique<Nanbeige>(npu_device_inst);
             break;
         case SupportedModelFamily::phi4:
             auto_chat_engine = std::make_unique<Phi4>(npu_device_inst);
