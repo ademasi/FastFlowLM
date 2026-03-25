@@ -182,6 +182,7 @@ target_link_libraries(flm PUBLIC
     gemma_embedding
     lfm2_npu
     phi4_npu
+    nanbeige_npu
     dequant
     gemm
     lm_head
