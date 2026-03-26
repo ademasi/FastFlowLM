@@ -10,7 +10,7 @@ nav_order: 7
 This section reports the performance of Qwen 3.5 on NPU with FastFlowLM (FLM).
 
 > **Note:** 
-> - Results are based on FastFlowLM v0.9.36.  
+> - Results are based on FastFlowLM v0.9.37.  
 > - Under FLM's default NPU power mode (Performance)    
 > - Newer versions may deliver improved performance.
 > - Fine-tuned models show performance comparable to their base models.   
