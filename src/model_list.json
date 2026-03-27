@@ -20,7 +20,7 @@
                     "family": "nanbeige",
                     "think": false,
                     "parameter_size": "3B",
-                    "quantization_level": "Q4_0"
+                    "quantization_level": "Q4_1"
                 },
                 "footprint": 1.3
             }
