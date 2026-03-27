@@ -25,7 +25,8 @@
                     "quantization_level": "Q4_1"
                 },
                 "label": [
-                    "vision"
+                    "vision",
+                    "tool-calling"
                 ],
                 "footprint": 3.9
             }
@@ -55,7 +56,9 @@
                     "quantization_level": "Q4_1"
                 },
                 "label": [
-                    "vision"
+                    "vision",
+                    "reasoning",
+                    "tool-calling"
                 ],
                 "footprint": 3.2
             },
@@ -83,7 +86,9 @@
                     "quantization_level": "Q4_1"
                 },
                 "label": [
-                    "vision"
+                    "vision",
+                    "reasoning",
+                    "tool-calling"
                 ],
                 "footprint": 5.2
             },
@@ -111,7 +116,9 @@
                     "quantization_level": "Q4_1"
                 },
                 "label": [
-                    "vision"
+                    "vision",
+                    "reasoning",
+                    "tool-calling"
                 ],
                 "footprint": 8.94
             }
