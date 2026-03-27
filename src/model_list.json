@@ -4,8 +4,8 @@
         "nanbeige": {
             "3b": {
                 "name": "Nanbeige-3B-NPU2",
-                "url": "https://huggingface.co/FastFlowLM/Nanbeige-3B-NPU2/resolve/v0.9.21-merge-lm-head",
-                "file_url": "https://huggingface.co/api/models/FastFlowLM/Nanbeige-3B-NPU2/tree/v0.9.21-merge-lm-head",
+                "url": "https://huggingface.co/FastFlowLM/Nanbeige-3B-NPU2",
+                "file_url": "https://huggingface.co/api/models/FastFlowLM/Nanbeige-3B-NPU2/tree/main",
                 "modified_at": "2025-05-30T00:00:00Z",
                 "size": 1000000000,
                 "flm_min_version": "0.9.37",
