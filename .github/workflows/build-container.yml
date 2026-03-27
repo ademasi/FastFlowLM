@@ -12,11 +12,11 @@ jobs:
       matrix:
         include:
           - release: "24.04"
-            ubuntu_ppa: "ppa:amd-team/xrt"
+            ubuntu_ppa: "ppa:lemonade-team/stable"
             distro: "ubuntu"
             backports: ""
           - release: "25.10"
-            ubuntu_ppa: "ppa:amd-team/xrt"
+            ubuntu_ppa: "ppa:lemonade-team/stable"
             distro: "ubuntu"
             backports: ""
           - release: "26.04"

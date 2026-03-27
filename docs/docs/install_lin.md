@@ -86,10 +86,10 @@ The quickstart guide below will help you install these requirements.
 #### 1. Add the AMD XRT PPA (Required for NPU/XDNA)
 The AMD XRT stack is a prerequisite for NPU support. Add AMD's PPA:
 ```sh
-sudo add-apt-repository ppa:amd-team/xrt
+sudo add-apt-repository ppa:lemonade-team/stable
 sudo apt update
 ```
-See [amd-team/xrt PPA](https://launchpad.net/~amd-team/+archive/ubuntu/xrt) for details.
+See [lemonade-team/stable PPA](https://launchpad.net/~lemonade-team/+archive/ubuntu/stable) for details.
 
 #### 2. Install XRT and NPU Drivers
 ```sh
