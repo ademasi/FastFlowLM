@@ -136,8 +136,6 @@ docs_nav:
         url: "/docs/models/whisper/"
       - label: EmbeddingGemma
         url: "/docs/models/embeddinggemma/"
-      - label: Nanbeige
-        url: "/docs/models/nanbeige/"
   - label: Benchmarks
     children:
       - label: Overview
