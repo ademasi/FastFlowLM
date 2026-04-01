@@ -136,6 +136,8 @@ docs_nav:
         url: "/docs/models/whisper/"
       - label: EmbeddingGemma
         url: "/docs/models/embeddinggemma/"
+      - label: Nanbeige
+        url: "/docs/models/nanbeige/"
   - label: Benchmarks
     children:
       - label: Overview
@@ -156,3 +158,5 @@ docs_nav:
         url: "/docs/benchmarks/lfm2_results/"
       - label: Microsoft/Phi4
         url: "/docs/benchmarks/phi4_results/"
+      - label: Nanbeige4.1
+        url: "/docs/benchmarks/nanbeige4.1_results/"
