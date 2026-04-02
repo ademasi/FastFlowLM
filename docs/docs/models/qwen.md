@@ -254,7 +254,7 @@ The `-r` option determines image's height:
 
 - **Type:** Image-Text-to-Text
 - **Think:** Toggleable
-- **Tool Calling Support:** Yes  
+- **Tool Calling Support:** No  
 - **Base Model:** [Qwen/Qwen3.5-0.8B](https://huggingface.co/Qwen/Qwen3.5-0.8B)
 - **Quantization:** Q4_1
 - **Max Context Length:** 256k tokens  
