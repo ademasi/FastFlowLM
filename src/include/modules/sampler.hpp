@@ -30,7 +30,7 @@ typedef struct sampler_config_{
     int rep_penalty_window = 64;
     int freq_penalty_window = 64;  // Window size for frequency penalty
     int repeat_last_n = 64;
-    bool use_optimized_sampling = false;
+    bool use_optimized_sampling = true;
     bool has_rng_seed = false;
     uint64_t rng_seed = 0;
 } sampler_config;
@@ -71,7 +71,7 @@ public:
 
     std::mt19937_64 rng_{};
     std::uniform_real_distribution<float> uniform_dist_{0.0f, 1.0f};
-    bool use_optimized_sampling = false;
+    bool use_optimized_sampling = true;
 
     /// \brief Constructor
     /// \param in_features the input features
