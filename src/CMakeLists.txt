@@ -177,6 +177,7 @@ target_link_libraries(flm PUBLIC
     qwen3_5vl_npu
     gemma_npu
     gemma_text_npu
+    gemma4e_npu
     gpt_oss_npu
     whisper_npu
     gemma_embedding
