@@ -27,7 +27,7 @@ public:
     Embedding(int vocab_size, int d_model){
         this->vocab_size = vocab_size;
         this->d_model = d_model;
-        this->w.resize(vocab_size * d_model);
+        this->w.resize((size_t)vocab_size * d_model);
         this->y.resize(d_model);
     }
 

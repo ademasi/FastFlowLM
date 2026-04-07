@@ -19,6 +19,30 @@
 #include <immintrin.h>  // For AVX intrinsics
 #endif
 
+// some helper functions for convenience
+constexpr int GEMMA4E_IS_GLOBAL_MASK = 0x00000001;
+constexpr int GEMMA4E_IS_SKIP_MASK = 0x00000002;
+
+typedef enum :int {
+    e_gemma4e_swa_layer = 0,
+    e_gemma4e_global_layer = GEMMA4E_IS_GLOBAL_MASK,
+    e_gemma4e_swa_layer_skip = GEMMA4E_IS_SKIP_MASK,
+    e_gemma4e_global_layer_skip = GEMMA4E_IS_GLOBAL_MASK | GEMMA4E_IS_SKIP_MASK,
+    e_gemma4e_total_layer_types = 4
+} gemma4e_layer_type_t;
+
+inline bool is_swa_layer(gemma4e_layer_type_t layer) {
+    return (layer & GEMMA4E_IS_GLOBAL_MASK) == 0;
+}
+
+inline bool is_global_layer(gemma4e_layer_type_t layer) {
+    return (layer & GEMMA4E_IS_GLOBAL_MASK) != 0;
+}
+
+inline bool is_skip_layer(gemma4e_layer_type_t layer) {
+    return (layer & GEMMA4E_IS_SKIP_MASK) != 0;
+}
+
 typedef struct {
     int height;
     int width;

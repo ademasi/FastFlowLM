@@ -213,6 +213,10 @@ bool Gemma4e::insert(chat_meta_info_t& meta_info, lm_uniform_input_t& input) {
     }
     std::cout << "DEBUG: current token is size is  " << tokens.size() << "MAX_L is " << this->MAX_L << std::endl;   
     this->profiler_list[TKOEN_ENCODE_TIME].stop(tokens.size());
+    for (const auto& token : tokens) {
+        std::cout << token << ", ";
+    }
+    std::cout << std::endl;
     // hardware
     if (image_payload.num_images > 0){
         return this->_shared_insert(meta_info, tokens, &image_payload);
