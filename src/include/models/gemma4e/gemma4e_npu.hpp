@@ -108,7 +108,7 @@ public:
     float GEMMA4E_ROPE_THETA;
     unsigned int GEMMA4E_POOLING_KERNEL_SIZE;
     unsigned int GEMMA4E_POSITION_EMBEDDING_SIZE;
-    unsigned int GEMMA4E_VISION_IMAGE_SIZE;
+    unsigned int GEMMA4E_VISION_IMAGE_OUTPUT_SIZE;
     float GEMMA4E_VISION_RESCALE_FACTOR;
     float GEMMA4E_VISION_IMAGE_MEAN;
     float GEMMA4E_VISION_IMAGE_STD;
@@ -126,7 +126,7 @@ public:
         GEMMA4E_ROPE_THETA                 = config._vision_config.value("GEMMA4E_ROPE_THETA", -1.0f);
         GEMMA4E_POOLING_KERNEL_SIZE        = config._vision_config.value("GEMMA4E_POOLING_KERNEL_SIZE", -1);
         GEMMA4E_POSITION_EMBEDDING_SIZE    = config._vision_config.value("GEMMA4E_POSITION_EMBEDDING_SIZE", -1);
-        GEMMA4E_VISION_IMAGE_SIZE          = config._vision_config.value("GEMMA4E_VISION_IMAGE_SIZE", -1);
+        GEMMA4E_VISION_IMAGE_OUTPUT_SIZE   = config._vision_config.value("GEMMA4E_VISION_IMAGE_OUTPUT_SIZE", -1);
         GEMMA4E_VISION_RESCALE_FACTOR      = config._vision_config.value("GEMMA4E_VISION_RESCALE_FACTOR", -1.0f);
         GEMMA4E_VISION_IMAGE_MEAN          = config._vision_config.value("GEMMA4E_VISION_IMAGE_MEAN", -1.0f);
         GEMMA4E_VISION_IMAGE_STD           = config._vision_config.value("GEMMA4E_VISION_IMAGE_STD", -1.0f);
