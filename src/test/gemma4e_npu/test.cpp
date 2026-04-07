@@ -65,10 +65,10 @@ int main(int argc, char* argv[]) {
     header_print("info", "Model loaded");
     chat_meta_info_t meta_info;
     lm_uniform_input_t uniformed_input;
-    chat->set_topk(1);
+    // chat->set_topk(1);
 
     if (short_prompt) {
-        uniformed_input.prompt = "How are you?";
+        uniformed_input.prompt = "What is the distance from earth to moon? Can you do a basic calculation that how long does it take for light to do a round trip between moon and earth?";
         // // uniformed_input.prompt = "Solve the equation x^3 - 1 = 0 for me.";
         // uniformed_input.images.push_back("../../../tb_files/panda.png");
         // uniformed_input.images.push_back("../../../tb_files/puppy.png");
@@ -124,6 +124,11 @@ int main(int argc, char* argv[]) {
     std::pair<std::string, std::vector<int>> history = chat->get_history();
     std::cout << "History length: " << history.second.size() << std::endl;
     std::cout << std::endl;
+
+    for (int i = 0; i < history.second.size(); i++) {
+        std::cout << history.second[i] << " ";
+    }
+
 
     std::cout << std::endl;
 
