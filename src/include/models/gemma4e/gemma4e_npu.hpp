@@ -73,6 +73,20 @@ typedef struct {
 }gemma4e_image_payload_t;
 
 
+typedef struct {
+    // per-audio mel spectrogram data
+    std::vector<std::vector<float>> mel_spectrograms;              // [num_audios][frames * bins], row-major
+    std::vector<int> mel_spectrogram_frames_per_audio;             // [num_audios]
+    std::vector<int> mel_spectrogram_bins_per_audio;               // [num_audios]
+    unsigned int num_audios = 0;
+
+} gemma4e_audio_payload_t;
+
+
+typedef struct {
+    gemma4e_image_payload_t image_payload;
+    gemma4e_audio_payload_t audio_payload;
+} gemma4e_multi_modal_payload_t;
 
 class gemma4e_npu : public causal_lm{
 public:

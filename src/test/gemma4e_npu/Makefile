@@ -20,9 +20,13 @@ SOURCES += test.cpp
 SOURCES += ../../common/AutoModel/automodel.cpp
 SOURCES += ../../common/AutoModel/modeling_gemma4e.cpp
 SOURCES += ../../common/AutoModel/modeling_gemma4e_image.cpp
+SOURCES += ../../common/AutoModel/modeling_gemma4e_audio.cpp
 SOURCES += ../../common/image_process_utils/imageproc.cpp
 SOURCES += ../../common/image_process_utils/imageprocAVX512.cpp
+SOURCES += ../../common/audio_process_utils/audioproc.cpp
+SOURCES += ../../common/audio_process_utils/audioprocAVX512.cpp
 SOURCES += ../../common/image/image_reader.cpp
+SOURCES += ../../common/audio/audio_reader.cpp
 SOURCES += ../../common/tokenizer/tokenizer.cpp
 SOURCES += ../../common/modules/sampler.cpp
 
@@ -34,6 +38,7 @@ ifeq ($(WSL), 0)
 
 LDFLAGS += -lgemma4e_npu
 LDFLAGS += -lavformat -lavcodec -lavutil -lswscale -lswresample
+LDFLAGS += -lfftw3f
 
 TEST_DEPS := $(test.cpp:.cpp=.d)
 

@@ -22,9 +22,13 @@ add_npu_test(
     SOURCES
         "${CMAKE_SOURCE_DIR}/../../common/AutoModel/modeling_gemma4e.cpp"
         "${CMAKE_SOURCE_DIR}/../../common/AutoModel/modeling_gemma4e_image.cpp"
+        "${CMAKE_SOURCE_DIR}/../../common/AutoModel/modeling_gemma4e_audio.cpp"
         "${CMAKE_SOURCE_DIR}/../../common/image_process_utils/imageproc.cpp"
         "${CMAKE_SOURCE_DIR}/../../common/image_process_utils/imageprocAVX512.cpp"
         "${CMAKE_SOURCE_DIR}/../../common/image/image_reader.cpp"
+        "${CMAKE_SOURCE_DIR}/../../common/image/audio_reader.cpp"       
+        "${CMAKE_SOURCE_DIR}/../../common/audio_process_utils/audioproc.cpp"
+        "${CMAKE_SOURCE_DIR}/../../common/audio_process_utils/audioprocAVX512.cpp"
 )
 
 target_compile_definitions(test_gemma4e_npu PUBLIC
@@ -47,6 +51,7 @@ target_link_libraries(test_gemma4e_npu PUBLIC
     avutil
     swscale
     zlib
+    fftw3f
 )
 
 # Link OpenMP if available

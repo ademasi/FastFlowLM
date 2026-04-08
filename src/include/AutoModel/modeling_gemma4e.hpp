@@ -12,6 +12,7 @@
 
 #include "typedef.hpp"
 #include "image/image_reader.hpp"
+#include "audio/audio_reader.hpp"
 #include "image_process_utils/imageproc.hpp"
 #include "image_process_utils/imageprocAVX512.hpp"
 #include "tensor_utils/q4_npu_eXpress.hpp"
@@ -32,9 +33,12 @@ private:
     ImageReader image_reader_;
     gemma4e_image_t load_image(const std::string& filename);
     gemma4e_image_t load_image_base64(const std::string& base64_string);
-    
 
-
+    // Audio processing functionality
+    AudioReader audio_reader_;
+    audio_data_t load_audio(const std::string &filename, int resample_rate, MonoDownmixMode downmix = MonoDownmixMode::NONE);
+    audio_data_t clip_audio_length(audio_data_t& audio, double max_duration_second);
+    void extract_spectrogram(std::vector<audio_data_t>& audio_inputs, gemma4e_audio_payload_t& audio_payload);
 
     int image_softtoken_budget = 280; // set a default value
 
