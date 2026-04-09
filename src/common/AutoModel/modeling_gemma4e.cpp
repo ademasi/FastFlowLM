@@ -20,7 +20,7 @@ void Gemma4e::load_model(std::string model_path, json model_info, int default_co
     this->q4nx = std::make_unique<Q4NX>(this->model_path);
     // lm_config->model_type == qwen3
     this->lm_engine = std::make_unique<gemma4e_npu>(*this->lm_config, this->npu.get(), this->MAX_L);
-    std::cout <<"lm_enginer created" << std::endl;
+
     this->lm_engine->load_weights(*this->q4nx);
     //free the q4nx
     this->q4nx.reset();
@@ -63,7 +63,7 @@ std::string Gemma4e::apply_chat_template(nlohmann::ordered_json& messages, nlohm
 
 bool Gemma4e::insert(chat_meta_info_t& meta_info, lm_uniform_input_t& input) {
     // preprocess
-    constexpr int image_soft_token_id = 248056;
+    constexpr int image_soft_token_id = 258880;
     this->profiler_list[TKOEN_ENCODE_TIME].start();
     std::string templated_text;
     if (input.messages.empty() && input.prompt.empty()) {
@@ -197,26 +197,26 @@ bool Gemma4e::insert(chat_meta_info_t& meta_info, lm_uniform_input_t& input) {
     for (int i = 0; i < input.images.size(); i++) {
         total_image_tokens += image_payload.num_soft_tokens_per_image[i];
     }
-    std::cout << "DEBUG: total image tokens is " << total_image_tokens << std::endl;
-
+    
     tokens.reserve(tokens_init.size() + total_image_tokens);
+    
     int image_counter = 0;
+   
     for (int i = 0; i < tokens_init.size(); i++) {
         if (tokens_init[i] == image_soft_token_id) {
+            tokens.push_back(255999); // the first image soft token id, which is reserved for the model to identify the image position, the rest of the soft tokens for this image will be continuous following this id
             for (int j = 0; j <  image_payload.num_soft_tokens_per_image[image_counter]; j++) {
                 tokens.push_back(image_soft_token_id);
             }
+            tokens.push_back(258882); // a separator token between images, not necessary but can help the model to better distinguish different images
             image_counter++;
         } else {
             tokens.push_back(tokens_init[i]);
         }
     }
-    std::cout << "DEBUG: current token is size is  " << tokens.size() << "MAX_L is " << this->MAX_L << std::endl;   
+      
     this->profiler_list[TKOEN_ENCODE_TIME].stop(tokens.size());
-    for (const auto& token : tokens) {
-        std::cout << token << ", ";
-    }
-    std::cout << std::endl;
+
     // hardware
     if (image_payload.num_images > 0){
         return this->_shared_insert(meta_info, tokens, &image_payload);

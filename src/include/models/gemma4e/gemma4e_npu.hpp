@@ -132,11 +132,29 @@ public:
     float GEMMA4E_ROPE_THETA;
     unsigned int GEMMA4E_POOLING_KERNEL_SIZE;
     unsigned int GEMMA4E_POSITION_EMBEDDING_SIZE;
-    unsigned int GEMMA4E_VISION_IMAGE_SIZE;
+    unsigned int GEMMA4E_VISION_IMAGE_OUTPUT_SIZE;
     float GEMMA4E_VISION_RESCALE_FACTOR;
     float GEMMA4E_VISION_IMAGE_MEAN;
     float GEMMA4E_VISION_IMAGE_STD;
 
+    // parameters for audio preprocessing in Gemma4e
+    unsigned int Audio_MM_TILE_M;
+    unsigned int Audio_MM_TILE_K;
+    unsigned int Audio_MM_TILE_N;
+    int Gemma4E_Audio_resample_rate;
+    float Gemma4E_Audio_gradient_clipping;
+    unsigned int Gemma4E_Audio_OUTPUT_SIZE;
+    unsigned int Gemma4E_Audio_HIDDEN_SIZE;
+    unsigned int Gemma4E_Audio_INTERMEDIATE_SIZE;
+    unsigned int Gemma4E_Audio_attention_chunk_size;
+    unsigned int Gemma4E_Audio_attention_context_left;
+    unsigned int Gemma4E_Audio_attention_context_right;
+    unsigned int Gemma4E_Audio_num_attention_heads;
+    unsigned int Gemma4E_Audio_num_attention_layers;
+    unsigned int Gemma4E_Audio_conv1d_kernel_size;
+    unsigned int Gemma4E_conv2d_kernel_size;
+    unsigned int Gemma4E_conv2d_Stride;
+    unsigned int Gemma4e_conv2d_Padding;
 
     inline void load_vision_preprocess_parameters(LM_Config& config){
         // Note: this should be called by Impl:: constructor
@@ -150,11 +168,32 @@ public:
         GEMMA4E_ROPE_THETA                 = config._vision_config.value("GEMMA4E_ROPE_THETA", -1.0f);
         GEMMA4E_POOLING_KERNEL_SIZE        = config._vision_config.value("GEMMA4E_POOLING_KERNEL_SIZE", -1);
         GEMMA4E_POSITION_EMBEDDING_SIZE    = config._vision_config.value("GEMMA4E_POSITION_EMBEDDING_SIZE", -1);
-        GEMMA4E_VISION_IMAGE_SIZE          = config._vision_config.value("GEMMA4E_VISION_IMAGE_SIZE", -1);
+        GEMMA4E_VISION_IMAGE_OUTPUT_SIZE   = config._vision_config.value("GEMMA4E_VISION_IMAGE_OUTPUT_SIZE", -1);
         GEMMA4E_VISION_RESCALE_FACTOR      = config._vision_config.value("GEMMA4E_VISION_RESCALE_FACTOR", -1.0f);
         GEMMA4E_VISION_IMAGE_MEAN          = config._vision_config.value("GEMMA4E_VISION_IMAGE_MEAN", -1.0f);
         GEMMA4E_VISION_IMAGE_STD           = config._vision_config.value("GEMMA4E_VISION_IMAGE_STD", -1.0f);
     }
+
+    inline void load_audio_preprocess_parameters(LM_Config& config){
+        Audio_MM_TILE_M = config._audio_config.value("Audio_MM_TILE_M", 128);
+        Audio_MM_TILE_K = config._audio_config.value("Audio_MM_TILE_K", 512);
+        Audio_MM_TILE_N = config._audio_config.value("Audio_MM_TILE_N", 64);
+        Gemma4E_Audio_resample_rate = config._audio_config.value("Gemma4E_Audio_audio_resample_rate", -1);
+        Gemma4E_Audio_gradient_clipping = config._audio_config.value("Gemma4E_Audio_gradient_clipping", -1.0f);
+        Gemma4E_Audio_OUTPUT_SIZE = config._audio_config.value("Gemma4E_Audio_OUTPUT_SIZE", -1);
+        Gemma4E_Audio_HIDDEN_SIZE = config._audio_config.value("Gemma4E_Audio_HIDDEN_SIZE", -1);
+        Gemma4E_Audio_INTERMEDIATE_SIZE = config._audio_config.value("Gemma4E_Audio_INTERMEDIATE_SIZE", -1);
+        Gemma4E_Audio_attention_chunk_size = config._audio_config.value("Gemma4E_Audio_attention_chunk_size", -1);
+        Gemma4E_Audio_attention_context_left = config._audio_config.value("Gemma4E_Audio_attention_context_left", -1);
+        Gemma4E_Audio_attention_context_right = config._audio_config.value("Gemma4E_Audio_attention_context_right", -1);
+        Gemma4E_Audio_num_attention_heads = config._audio_config.value("Gemma4E_Audio_num_attention_heads", -1);
+        Gemma4E_Audio_num_attention_layers = config._audio_config.value("Gemma4E_Audio_num_attention_layers", -1);
+        Gemma4E_Audio_conv1d_kernel_size = config._audio_config.value("Gemma4E_Audio_conv1d_kernel_size", -1);
+        Gemma4E_conv2d_kernel_size = config._audio_config.value("Gemma4E_conv2d_kernel_size", -1);
+        Gemma4E_conv2d_Stride = config._audio_config.value("Gemma4E_conv2d_Stride", -1);
+        Gemma4e_conv2d_Padding = config._audio_config.value("Gemma4e_conv2d_Padding", -1);
+    }
+
 private:
     struct Impl;
     Impl* _impl;
