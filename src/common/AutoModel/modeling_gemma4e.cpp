@@ -239,6 +239,88 @@ std::string Gemma4e::generate_with_prompt(chat_meta_info_t& meta_info, lm_unifor
 }
 
 // Non-stream
+NonStreamResult Gemma4e::parse_nstream_content(const std::string response_text) {
+    NonStreamResult result;
+
+    std::string think_start_tag = "<|channel>thought";
+    std::string think_end_tag = "<channel|>";
+    std::string tool_start_tag = "<|tool_call>";
+    std::string tool_end_tag = "<tool_call|>";
+    std::string tool_resp_tag = "<|tool_response>";
+    std::string custom_quote_tag = "<|\"|>";
+
+    size_t think_start_pos = response_text.find(think_start_tag);
+    size_t think_end_pos = response_text.find(think_end_tag);
+    size_t tool_start_pos = response_text.find(tool_start_tag);
+    size_t tool_end_pos = response_text.find(tool_end_tag);
+
+    bool is_reasoning = (think_start_pos != std::string::npos && think_end_pos != std::string::npos && think_end_pos > think_start_pos);
+    bool is_tool = (tool_start_pos != std::string::npos && tool_end_pos != std::string::npos && tool_end_pos > tool_start_pos);
+
+    // 1. Parse Reasoning Content
+    if (is_reasoning) {
+        size_t start = think_start_pos + think_start_tag.length();
+        result.reasoning_content = response_text.substr(start, think_end_pos - start);
+    }
+
+    // 2. Parse Tool Calling
+    if (is_tool) {
+        size_t start = tool_start_pos + tool_start_tag.length();
+        std::string tool_content = response_text.substr(start, tool_end_pos - start);
+
+        // Remove the "call:" prefix if it exists
+        std::string prefix = "call:";
+        if (tool_content.find(prefix) == 0) {
+            tool_content = tool_content.substr(prefix.length());
+        }
+
+        // Split into Name and Arguments
+        size_t brace_pos = tool_content.find('{');
+        if (brace_pos != std::string::npos) {
+            result.tool_name = tool_content.substr(0, brace_pos);
+            
+            // Keep the {} brackets for the arguments
+            std::string args_str = tool_content.substr(brace_pos);
+
+            // Convert custom quote tags <|"|> to standard double quotes "
+            size_t quote_pos = 0;
+            while ((quote_pos = args_str.find(custom_quote_tag, quote_pos)) != std::string::npos) {
+                args_str.replace(quote_pos, custom_quote_tag.length(), "\"");
+                quote_pos += 1;
+            }
+
+            // Wrap unquoted keys in double quotes to create valid JSON
+            // e.g., {query:"ai"} -> {"query":"ai"}
+            std::regex key_regex("([{,])\\s*([a-zA-Z0-9_]+)\\s*:");
+            args_str = std::regex_replace(args_str, key_regex, "$1\"$2\":");
+
+            result.tool_args = args_str;
+        } else {
+            // Fallback if no arguments were provided
+            result.tool_name = tool_content;
+            result.tool_args = "{}";
+        }
+    }
+    // 3. Parse Normal Content
+    else {
+        if (is_reasoning) {
+            // Content is whatever comes AFTER the reasoning block
+            result.content = response_text.substr(think_end_pos + think_end_tag.length());
+        } else {
+            // No reasoning, no tools -> the whole text is content
+            result.content = response_text;
+        }
+
+        // Cleanup: Strip out <|tool_response> if the model accidentally hallucinated it into plain text
+        size_t resp_pos = 0;
+        while ((resp_pos = result.content.find(tool_resp_tag, resp_pos)) != std::string::npos) {
+            result.content.erase(resp_pos, tool_resp_tag.length());
+        }
+    }
+
+    return result;
+}
+
 
 // Stream
 StreamResult Gemma4e::parse_stream_content(const std::string content) {
