@@ -281,24 +281,32 @@ void RestHandler::ensure_embed_model_loaded(const std::string& model_tag) {
 ///@param options the options JSON object
 ///@param request the request JSON object
 void RestHandler::configure_chat_engine_parameters(const json& options, const json& request) {
-    if (options.contains("temperature")) {
-        float temperature = options["temperature"];
+    if (request.contains("temperature")) {
+        float temperature = request["temperature"];
         auto_chat_engine->set_temperature(temperature);
     }
-    if (options.contains("top_p")) {
-        float top_p = options["top_p"];
+    if (request.contains("top_p")) {
+        float top_p = request["top_p"];
         auto_chat_engine->set_topp(top_p);
     }
-    if (options.contains("top_k")) {
-        int top_k = options["top_k"];
+    if (request.contains("top_k")) {
+        int top_k = request["top_k"];
         auto_chat_engine->set_topk(top_k);
     }
-    if (options.contains("frequency_penalty")) {
-        float frequency_penalty = options["frequency_penalty"];
+    if (request.contains("min_p")) {
+        int min_p = request["min_p"];
+        auto_chat_engine->set_minp(min_p);
+    }
+    if (request.contains("presence_penalty")) {
+        float presence_penalty = request["presence_penalty"];
+        auto_chat_engine->set_presence_penalty(presence_penalty);
+    }
+    if (request.contains("frequency_penalty")) {
+        float frequency_penalty = request["frequency_penalty"];
         auto_chat_engine->set_frequency_penalty(frequency_penalty);
     }
-    if (options.contains("repetition_penalty")) {
-        float repetition_penalty = options["repetition_penalty"];
+    if (request.contains("repetition_penalty")) {
+        float repetition_penalty = request["repetition_penalty"];
         auto_chat_engine->set_repetition_penalty(repetition_penalty);
     }
     if (request.contains("think")) {
@@ -853,11 +861,8 @@ void RestHandler::handle_openai_chat_completion(const json& request,
         // Extract OpenAI-style parameters
         json current_messages = request["messages"];
         std::string model = request.value("model", current_model_tag);
-        std::string reasoning_effort = request.value("reasoning_effort", "medium");
         bool stream = request.value("stream", false);
-        // max_tokens (preferred) or max_completion_tokens for OpenAI compatibility
-        int length_limit = request.value("max_tokens",
-                                         request.value("max_completion_tokens", 4096));
+        int length_limit = request.value("max_tokens", request.value("max_completion_tokens", 4096));
         json tools = request.value("tools", json::array());
         json options = request.value("options", json::object());
 
@@ -868,6 +873,8 @@ void RestHandler::handle_openai_chat_completion(const json& request,
             return;
         }
         auto load_end_time = time_utils::now();
+
+        configure_chat_engine_parameters(options, request);
 
         current_messages = normalize_messages(current_messages);
         current_messages = normalize_template(current_messages);
@@ -893,37 +900,6 @@ void RestHandler::handle_openai_chat_completion(const json& request,
                 messages = current_messages;
             }
         }
-
-        // OpenAI API doesn't put the parameters into options
-        if (request.contains("temperature")) {
-            float temperature = request["temperature"];
-            auto_chat_engine->set_temperature(temperature);
-        }
-        if (request.contains("top_p")) {
-            float top_p = request["top_p"];
-            auto_chat_engine->set_topp(top_p);
-        }
-        if (request.contains("top_k")) {
-            int top_k = request["top_k"];
-            auto_chat_engine->set_topk(top_k);
-        }
-        if (request.contains("min_p")) {
-            int min_p = request["min_p"];
-            auto_chat_engine->set_minp(min_p);
-        }
-        if (request.contains("presence_penalty")) {
-            float presence_penalty = request["presence_penalty"];
-            auto_chat_engine->set_presence_penalty(presence_penalty);
-        }
-        if (request.contains("frequency_penalty")) {
-            float frequency_penalty = request["frequency_penalty"];
-            auto_chat_engine->set_frequency_penalty(frequency_penalty);
-        }
-        if (request.contains("repetition_penalty")) {
-            float repetition_penalty = request["repetition_penalty"];
-            auto_chat_engine->set_repetition_penalty(repetition_penalty);
-        }
-        configure_chat_engine_parameters(options, request);
 
         chat_meta_info_t meta_info;
         lm_uniform_input_t uniformed_input;
