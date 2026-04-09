@@ -36,7 +36,7 @@ private:
 
 
 
-    int image_softtoken_budget = 280; // set a default value
+    int image_softtoken_budget = 560; // set a default value
 
     int debug_count= 0;
 
