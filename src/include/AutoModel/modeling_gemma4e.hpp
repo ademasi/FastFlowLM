@@ -118,14 +118,14 @@ public:
         }
         else if (parameter_name == "image-max-tokens") {
             try {
-            this->image_softtoken_budget = std::any_cast<int>(value);
+                this->image_softtoken_budget = std::any_cast<int>(value);
                 
-            if(image_softtoken_budget != 70 || image_softtoken_budget != 140 ||
+                if(image_softtoken_budget != 70 || image_softtoken_budget != 140 ||
                     image_softtoken_budget != 280 || image_softtoken_budget != 560 || image_softtoken_budget != 1120) {
                     header_print("WARNING", "Invalid image budget value: {}. Supported values are 70, 140, 280, 560, 1120. Using 280.", image_softtoken_budget);
                     this->image_softtoken_budget = 280;
                 }
-            return true;
+                return true;
             } catch (const std::bad_any_cast&) {
                 return false;
             }            
