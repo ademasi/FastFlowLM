@@ -36,7 +36,7 @@ private:
 
 
 
-    int image_softtoken_budget = 560; // set a default value
+    int image_softtoken_budget = 280; // set a default value
 
     int debug_count= 0;
 
@@ -122,7 +122,7 @@ public:
                 
                 if(image_softtoken_budget != 70 || image_softtoken_budget != 140 ||
                     image_softtoken_budget != 280 || image_softtoken_budget != 560 || image_softtoken_budget != 1120) {
-                    header_print("WARNING", "Invalid image budget value: {}. Supported values are 70, 140, 280, 560, 1120. Using 280.", image_softtoken_budget);
+                    header_print("WARNING", "Invalid image budget value: " << image_softtoken_budget << ". Supported values are 70, 140, 280, 560, 1120. Using 280...");
                     this->image_softtoken_budget = 280;
                 }
                 return true;
