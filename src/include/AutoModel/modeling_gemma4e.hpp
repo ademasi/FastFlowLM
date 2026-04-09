@@ -116,22 +116,21 @@ public:
                 return false;
             }
         }
-        else if (parameter_name == "image_budget") {
-            //TODO: use this to sepcific the vision budget #FIXME:
-            
-            
-
+        else if (parameter_name == "image-max-tokens") {
+            try {
             this->image_softtoken_budget = std::any_cast<int>(value);
-            // sanity checkt
+                
             if(image_softtoken_budget != 70 || image_softtoken_budget != 140 ||
-                image_softtoken_budget != 280 || image_softtoken_budget != 560 || image_softtoken_budget != 1120){
-                    std::cerr << "Invalid image budget value: " << image_softtoken_budget << ". Supported values are 70, 140, 280, 560, 1120." << std::endl;
-                    return false;
+                    image_softtoken_budget != 280 || image_softtoken_budget != 560 || image_softtoken_budget != 1120) {
+                    header_print("WARNING", "Invalid image budget value: {}. Supported values are 70, 140, 280, 560, 1120. Using 280.", image_softtoken_budget);
+                    this->image_softtoken_budget = 280;
                 }
             return true;
-
-           
+            } catch (const std::bad_any_cast&) {
+                return false;
+            }            
         }
+
 		return false;
 	}
 };

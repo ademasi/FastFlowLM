@@ -317,6 +317,11 @@ void RestHandler::configure_chat_engine_parameters(const json& options, const js
         std::string reasoning_effort = request["reasoning_effort"];
         auto_chat_engine->configure_parameter("reasoning_effort", reasoning_effort);
     }
+
+    if (request.contains("image-max-tokens")) {
+        int image_max_tokens = request["image-max-tokens"];
+        auto_chat_engine->configure_parameter("image_max_tokens", image_max_tokens);
+    }
 }
 
 json RestHandler::build_nstream_response(std::string response_text) {
