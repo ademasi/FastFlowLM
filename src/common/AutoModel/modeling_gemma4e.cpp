@@ -244,50 +244,123 @@ std::string Gemma4e::generate_with_prompt(chat_meta_info_t& meta_info, lm_unifor
 StreamResult Gemma4e::parse_stream_content(const std::string content) {
     const std::string MARKER_THINK_START = "<|channel>thought";
     const std::string MARKER_THINK_END = "<channel|>";
+    const std::string MARKER_TOOL_START = "<|tool_call>";
+    const std::string MARKER_TOOL_END = "<tool_call|>";
+    const std::string MARKER_TOOL_RESP = "<|tool_response>";
+    const std::string MARKER_CUSTOM_QUOTE = "<|\"|>"; 
 
-    // header_print("NZHDEBUG", "Parsing stream content: " << content);
-    
     StreamResult result;
     buffer_ += content;
 
     while (true) {
-        if (current_mode_ == StreamEventType::CONTENT) {
-            size_t think_start_pos = buffer_.find(MARKER_THINK_START);
-            if (think_start_pos != std::string::npos) {
-                if (think_start_pos > 0) {
-                    result.content = buffer_.substr(0, think_start_pos);
-                    result.type = StreamEventType::CONTENT;
-                    buffer_ = buffer_.substr(think_start_pos);
-                    return result;
+        if (is_in_tool_block_) {
+            size_t tool_end_pos = buffer_.find(MARKER_TOOL_END);
+            
+            if (tool_end_pos != std::string::npos) {
+                std::string tool_content = buffer_.substr(0, tool_end_pos);
+                buffer_ = buffer_.substr(tool_end_pos + MARKER_TOOL_END.length());
+                is_in_tool_block_ = false;
+
+                result.type = StreamEventType::TOOL_DONE;
+                
+                static int tool_counter = 0;
+                result.tool_id = "call_" + std::to_string(std::time(nullptr)) + "_" + std::to_string(tool_counter++);
+
+                std::string prefix = "call:";
+                if (tool_content.find(prefix) == 0) {
+                    tool_content = tool_content.substr(prefix.length());
                 }
-                buffer_ = buffer_.substr(MARKER_THINK_START.length());
-                current_mode_ = StreamEventType::REASONING;
-                continue;
+
+                size_t brace_pos = tool_content.find('{');
+                if (brace_pos != std::string::npos) {
+                    result.tool_name = tool_content.substr(0, brace_pos);
+                    
+                    std::string args_str = tool_content.substr(brace_pos);
+                    
+                    // Convert custom quote tags to standard double quotes
+                    size_t quote_pos = 0;
+                    while ((quote_pos = args_str.find(MARKER_CUSTOM_QUOTE, quote_pos)) != std::string::npos) {
+                        args_str.replace(quote_pos, MARKER_CUSTOM_QUOTE.length(), "\"");
+                        quote_pos += 1; 
+                    }
+
+                    // Wrap unquoted keys in double quotes
+                    // Because we kept the '{', this regex will now correctly trigger for the FIRST key too
+                    std::regex key_regex("([{,])\\s*([a-zA-Z0-9_]+)\\s*:");
+                    args_str = std::regex_replace(args_str, key_regex, "$1\"$2\":");
+                    
+                    result.tool_args_str = args_str;
+                } 
+                else {
+                    result.tool_name = tool_content;
+                    result.tool_args_str = "{}"; // Fallback if absolutely no braces exist
+                }
+                return result;
+            } 
+            else {
+                result.type = StreamEventType::WAITING;
+                return result;
             }
+        }
+
+        // Find the earliest occurring marker in the buffer to avoid skipping tags
+        size_t pos_tool_start = buffer_.find(MARKER_TOOL_START);
+        size_t pos_tool_resp  = buffer_.find(MARKER_TOOL_RESP);
+        size_t pos_think      = std::string::npos;
+
+        if (current_mode_ == StreamEventType::CONTENT) {
+            pos_think = buffer_.find(MARKER_THINK_START);
         } 
         else if (current_mode_ == StreamEventType::REASONING) {
-            size_t think_end_pos = buffer_.find(MARKER_THINK_END);
-            if (think_end_pos != std::string::npos) {
-                if (think_end_pos > 0) {
-                    result.content = buffer_.substr(0, think_end_pos);
-                    result.type = StreamEventType::REASONING;
-                    buffer_ = buffer_.substr(think_end_pos);
-                    return result;
+            pos_think = buffer_.find(MARKER_THINK_END);
+        }
+
+        size_t min_pos = std::string::npos;
+        if (pos_tool_start != std::string::npos) min_pos = std::min(min_pos, pos_tool_start);
+        if (pos_tool_resp != std::string::npos)  min_pos = std::min(min_pos, pos_tool_resp);
+        if (pos_think != std::string::npos)      min_pos = std::min(min_pos, pos_think);
+
+        // Flush the text content before the earliest marker
+        if (min_pos != std::string::npos && min_pos > 0) {
+            result.content = buffer_.substr(0, min_pos);
+            result.type = current_mode_;
+            buffer_ = buffer_.substr(min_pos);
+            return result;
+        }
+
+        // Process the exact marker located at index 0
+        if (min_pos == 0) {
+            if (pos_tool_resp == 0) {
+                buffer_ = buffer_.substr(MARKER_TOOL_RESP.length());
+                continue;
+            }
+            if (pos_tool_start == 0) {
+                is_in_tool_block_ = true;
+                buffer_ = buffer_.substr(MARKER_TOOL_START.length());
+                continue;
+            }
+            if (pos_think == 0) {
+                if (current_mode_ == StreamEventType::CONTENT) {
+                    buffer_ = buffer_.substr(MARKER_THINK_START.length());
+                    current_mode_ = StreamEventType::REASONING;
+                } else {
+                    buffer_ = buffer_.substr(MARKER_THINK_END.length());
+                    current_mode_ = StreamEventType::CONTENT;
                 }
-                buffer_ = buffer_.substr(MARKER_THINK_END.length());
-                current_mode_ = StreamEventType::CONTENT;
                 continue;
             }
         }
 
+        // Safe Flush Mechanism
         std::vector<std::string> active_markers;
+        active_markers.push_back(MARKER_TOOL_START);
+        active_markers.push_back(MARKER_TOOL_RESP);
+
         if (current_mode_ == StreamEventType::CONTENT) {
             active_markers.push_back(MARKER_THINK_START);
-            // active_markers.push_back(MARKER_TOOL_START);
         } 
         else if (current_mode_ == StreamEventType::REASONING) {
             active_markers.push_back(MARKER_THINK_END);
-            // active_markers.push_back(MARKER_TOOL_START);
         }
 
         size_t safe_flush_len = buffer_.length();
@@ -314,6 +387,5 @@ StreamResult Gemma4e::parse_stream_content(const std::string content) {
     }
 
     result.type = current_mode_;
-
     return result;
 }
