@@ -157,8 +157,13 @@ void Gemma4e::extract_spectrogram(std::vector<audio_data_t>& audio_inputs, gemma
     // ------- per_bin_mean / per_bin_stddev normalization (skipped if None) -------
     // per_bin_mean and per_bin_stddev are None by default, skip for now.
 
-    // ------- Store results into audio_payload -------
-    audio_payload.mel_spectrograms[audio_idx] = std::move(log_mel_spec);
+    // ------- Store results into audio_payload (float -> bf16) -------
+    const int total_bins = num_frames_out * feature_size;
+    std::vector<bf16> log_mel_spec_bf16(total_bins);
+    for (int i = 0; i < total_bins; i++) {
+        log_mel_spec_bf16[i] = static_cast<bf16>(log_mel_spec[i]);
+    }
+    audio_payload.mel_spectrograms[audio_idx] = std::move(log_mel_spec_bf16);
     audio_payload.mel_spectrogram_frames_per_audio[audio_idx] = num_frames_out;
     audio_payload.mel_spectrogram_bins_per_audio[audio_idx] = feature_size;
 

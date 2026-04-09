@@ -68,14 +68,21 @@ int main(int argc, char* argv[]) {
     // chat->set_topk(1);
 
     if (short_prompt) {
+
+
         uniformed_input.prompt = "What is the distance from earth to moon? Can you do a basic calculation that how long does it take for light to do a round trip between moon and earth?";
+        
+
+        uniformed_input.audios.push_back("/home/shouyud/liquid-mega-kernel-npu/python_code/gemma4/Demos_sample-data_journal.wav");
+        uniformed_input.audios.push_back("/home/shouyud/liquid-mega-kernel-npu/python_code/gemma4/tenyears_00_curry_128kb.mp3");        
+        uniformed_input.audios.push_back("/home/shouyud/liquid-mega-kernel-npu/python_code/qwen3_tts/output_voice_clone.wav");        
         // // uniformed_input.prompt = "Solve the equation x^3 - 1 = 0 for me.";
         // uniformed_input.images.push_back("../../../tb_files/panda.png");
         // uniformed_input.images.push_back("../../../tb_files/puppy.png");
         
-        // uniformed_input.images.push_back("../../../tb_files/mj_icon.jpg");
-        // uniformed_input.images.push_back("../../../tb_files/google_icon.png");
-        // uniformed_input.images.push_back("../../../tb_files/pcb.jpg");
+        uniformed_input.images.push_back("../../../tb_files/mj_icon.jpg");
+        uniformed_input.images.push_back("../../../tb_files/google_icon.png");
+        uniformed_input.images.push_back("../../../tb_files/pcb.jpg");
         
         std::cout << "Prompt: " << uniformed_input.prompt << std::endl;
         std::cout << "Response: " << std::endl;

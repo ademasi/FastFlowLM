@@ -75,10 +75,11 @@ typedef struct {
 
 typedef struct {
     // per-audio mel spectrogram data
-    std::vector<std::vector<float>> mel_spectrograms;              // [num_audios][frames * bins], row-major
+    std::vector<std::vector<bf16>> mel_spectrograms;               // [num_audios][frames * bins], row-major
     std::vector<int> mel_spectrogram_frames_per_audio;             // [num_audios]
     std::vector<int> mel_spectrogram_bins_per_audio;               // [num_audios]
     unsigned int num_audios = 0;
+    std::vector<unsigned int> num_soft_tokens_per_audio; // [num_audios]
 
 } gemma4e_audio_payload_t;
 
@@ -166,9 +167,12 @@ public:
     unsigned int Gemma4E_Audio_num_attention_heads;
     unsigned int Gemma4E_Audio_num_attention_layers;
     unsigned int Gemma4E_Audio_conv1d_kernel_size;
-    unsigned int Gemma4E_conv2d_kernel_size;
-    unsigned int Gemma4E_conv2d_Stride;
-    unsigned int Gemma4e_conv2d_Padding;
+    unsigned int Gemma4E_Audio_conv2d_kernel_size;
+    unsigned int Gemma4E_Audio_conv2d_Stride;
+    unsigned int Gemma4e_Audio_conv2d_Padding;
+    unsigned int Gemma4E_Audio_subsampling_conv_channels_0;
+    unsigned int Gemma4E_Audio_subsampling_conv_channels_1;
+
 
     inline void load_vision_preprocess_parameters(LM_Config& config){
         // Note: this should be called by Impl:: constructor
@@ -203,9 +207,11 @@ public:
         Gemma4E_Audio_num_attention_heads = config._audio_config.value("Gemma4E_Audio_num_attention_heads", -1);
         Gemma4E_Audio_num_attention_layers = config._audio_config.value("Gemma4E_Audio_num_attention_layers", -1);
         Gemma4E_Audio_conv1d_kernel_size = config._audio_config.value("Gemma4E_Audio_conv1d_kernel_size", -1);
-        Gemma4E_conv2d_kernel_size = config._audio_config.value("Gemma4E_conv2d_kernel_size", -1);
-        Gemma4E_conv2d_Stride = config._audio_config.value("Gemma4E_conv2d_Stride", -1);
-        Gemma4e_conv2d_Padding = config._audio_config.value("Gemma4e_conv2d_Padding", -1);
+        Gemma4E_Audio_conv2d_kernel_size = config._audio_config.value("Gemma4E_conv2d_kernel_size", -1);
+        Gemma4E_Audio_conv2d_Stride = config._audio_config.value("Gemma4E_conv2d_Stride", -1);
+        Gemma4e_Audio_conv2d_Padding = config._audio_config.value("Gemma4e_conv2d_Padding", -1);
+        Gemma4E_Audio_subsampling_conv_channels_0 = config._audio_config.value("Gemma4E_Audio_subsampling_conv_channels_0", -1);
+        Gemma4E_Audio_subsampling_conv_channels_1 = config._audio_config.value("Gemma4E_Audio_subsampling_conv_channels_1", -1);
     }
 
 private:

@@ -77,6 +77,8 @@ bool Gemma4e::insert(chat_meta_info_t& meta_info, lm_uniform_input_t& input) {
     gemma4e_audio_payload_t audio_payload;
     audio_payload.num_audios = 0;
     image_payload.num_images = 0;
+
+    float max_support_audio_length_seconds = 30.0f;
     if (input.images.size() > 0) {
 
 
@@ -143,7 +145,7 @@ bool Gemma4e::insert(chat_meta_info_t& meta_info, lm_uniform_input_t& input) {
 
             // apply clipping 
             //TODO make 30.0 second as a configurable parameter later
-            audio_data = this->clip_audio_length(audio_data, 30.0); // clip to 30 seconds, which is the max audio length that Gemma4e can handle
+            audio_data = this->clip_audio_length(audio_data, max_support_audio_length_seconds); // clip to 30 seconds, which is the max audio length that Gemma4e can handle
 
 
  
@@ -178,13 +180,65 @@ bool Gemma4e::insert(chat_meta_info_t& meta_info, lm_uniform_input_t& input) {
 
         // }
 
-        this->extract_spectrogram(audio_data_list, audio_payload);
+
+       this->extract_spectrogram(audio_data_list, audio_payload);
+
+        // Calculate the number of soft tokens per audio
+        // Mirrors Python's _compute_audio_num_tokens:
+        //   1. Mel framing (unfold) count
+        //   2. Two Conv2d subsampling layers (kernel=3, stride=2, semicausal pad top=1, bottom=1)
+        //   3. Cap at audio_seq_length
+        {
+            gemma4e_npu *gemma4e_engine = dynamic_cast<gemma4e_npu*>(this->lm_engine.get());
+            const unsigned int conv2d_kernel = gemma4e_engine->Gemma4E_Audio_conv2d_kernel_size;
+            const unsigned int conv2d_stride = gemma4e_engine->Gemma4E_Audio_conv2d_Stride;
+            const unsigned int conv2d_padding = gemma4e_engine->Gemma4e_Audio_conv2d_Padding;
+            const unsigned int max_audio_seq_length =max_support_audio_length_seconds * gemma4e_engine->Gemma4E_Audio_resample_rate;    // calculate from 30 second using gemma4e->Gemma4E_Audio_resample_rate
 
 
-        // // print out the actual infor for eachaudio_payload.audio
-        // for(int i = 0; i < audio_payload.num_audios; i++){
-        //     header_print("Audio Preprocess Debug", "Audio " + std::to_string(i) + ": mel spectrogram frames = " + std::to_string(audio_payload.mel_spectrogram_frames_per_audio[i]) + ", mel spectrogram bins = " + std::to_string(audio_payload.mel_spectrogram_bins_per_audio[i]));
-        // }   
+
+            
+            constexpr float frame_length_ms = 20.0f;
+            constexpr float hop_length_ms   = 10.0f;
+
+            for(int i = 0; i < audio_payload.num_audios; i++){
+                const int num_samples = static_cast<int>(audio_data_list[i].num_samples);
+                const int sampling_rate = audio_data_list[i].sample_rate;
+
+                // Step 1: Mel frames (matches feature_extraction_gemma4.py _unfold)
+                const int frame_length = static_cast<int>(std::round(sampling_rate * frame_length_ms / 1000.0f));
+                const int hop_length   = static_cast<int>(std::round(sampling_rate * hop_length_ms / 1000.0f));
+                const int frame_size_for_unfold = frame_length + 1;
+
+                const int pad_left = frame_length / 2;
+                const int padded_samples = num_samples + pad_left;
+                int num_mel_frames = (padded_samples - frame_size_for_unfold) / hop_length + 1;
+
+                unsigned int num_tokens = 0;
+                if (num_mel_frames > 0) {
+                    // Step 2: Two SSCP conv layers
+                    // Each layer: T_out = (T_in + pad_top + pad_bottom - kernel) // stride + 1
+                    int t = num_mel_frames;
+                    for (int layer = 0; layer < 2; layer++) {
+                        int t_padded = t + 2 * static_cast<int>(conv2d_padding);
+                        t = (t_padded - static_cast<int>(conv2d_kernel)) / static_cast<int>(conv2d_stride) + 1;
+                    }
+                    // Cap at audio_seq_length
+                    assert(t< max_audio_seq_length);
+                    num_tokens =t;
+                }
+                std::cout <<"max_audio_seq_length: " << max_audio_seq_length << ", calculated num_tokens for audio " << i << ": " << num_tokens << std::endl;
+                audio_payload.num_soft_tokens_per_audio.push_back(num_tokens);
+            }
+        }
+
+        // print out the actual info for each audio_payload.audio
+        for(int i = 0; i < audio_payload.num_audios; i++){
+            header_print("Audio Preprocess Debug", "Audio " + std::to_string(i) 
+                + ": mel spectrogram frames = " + std::to_string(audio_payload.mel_spectrogram_frames_per_audio[i]) 
+                + ", mel spectrogram bins = " + std::to_string(audio_payload.mel_spectrogram_bins_per_audio[i])
+                + ", num_soft_tokens = " + std::to_string(audio_payload.num_soft_tokens_per_audio[i]));
+        }   
         // {
 
         //     int length_per_reference_audio_spectrogram = 2999 * 128;
@@ -192,7 +246,7 @@ bool Gemma4e::insert(chat_meta_info_t& meta_info, lm_uniform_input_t& input) {
         //     reference_audio_preprocess_tensor.load_weights(prepared_speech_reference, "prepared_speech");
         //     std::cout << "Error analysis for prepared spectrogram tensor, comparing with reference tensor from safetensors..." << std::endl;
         //     for(int i = 0; i < audio_payload.num_audios; i++){
-        //         print_error_metrics<float, float>(
+        //         print_error_metrics<bf16, float>(
         //             audio_payload.mel_spectrograms[i].data(),
         //             prepared_speech_reference.data() + i * length_per_reference_audio_spectrogram,
         //             1, 
@@ -203,9 +257,7 @@ bool Gemma4e::insert(chat_meta_info_t& meta_info, lm_uniform_input_t& input) {
         //     }       
 
 
-        // }
-
-
+        // }    
 
     }
     if (!input.messages.empty()) { // already a formated messages, usually from REST API
