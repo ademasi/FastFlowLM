@@ -68,9 +68,9 @@ int main(int argc, char* argv[]) {
     // chat->set_topk(1);
 
     if (short_prompt) {
-        uniformed_input.prompt = "Hello, how are you?";
+        uniformed_input.prompt = "What is in this image?";
         // // uniformed_input.prompt = "Solve the equation x^3 - 1 = 0 for me.";
-        // uniformed_input.images.push_back("../../../tb_files/panda.png");
+        uniformed_input.images.push_back("../../../tb_files/panda.png");
         // uniformed_input.images.push_back("../../../tb_files/puppy.png");
         
         // uniformed_input.images.push_back("../../../tb_files/mj_icon.jpg");
