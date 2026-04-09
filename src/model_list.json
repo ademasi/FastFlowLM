@@ -61,13 +61,13 @@
                 "footprint": 3.9
             }
         },
-        "gemma4": {
-            "e2b-it": {
+        "gemma4-it": {
+            "e2b": {
                 "name": "Gemma4-E2B-IT-NPU2",
                 "url": "https://huggingface.co/FastFlowLM/Gemma4-E2B-IT-NPU2",
                 "file_url": "https://huggingface.co/api/models/FastFlowLM/Gemma4-E2B-IT-NPU2/tree/main",
                 "size": 2000000000,
-                "flm_min_version": "0.9.37",
+                "flm_min_version": "0.9.39",
                 "files": [
                     "config.json",
                     "model.q4nx",
@@ -83,7 +83,7 @@
                     "format": "NPU2",
                     "family": "gemma4e",
                     "think": true,
-                    "parameter_size": "2B",
+                    "parameter_size": "5B",
                     "quantization_level": "Q4_1"
                 },
                 "label": [
@@ -91,7 +91,7 @@
                     "reasoning",
                     "tool-calling"
                 ],
-                "footprint": 3.2
+                "footprint": 7.5
             }
         },        
         "qwen3.5": {
