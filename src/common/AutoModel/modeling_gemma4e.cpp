@@ -16,7 +16,7 @@ Gemma4e::Gemma4e(xrt::device* npu_device_inst) : AutoModel(npu_device_inst, "Gem
 void Gemma4e::load_model(std::string model_path, json model_info, int default_context_length, bool enable_preemption) {
     std::cout << "Loading model from: " << model_path << std::endl;
     this->_shared_load_model(model_path, model_info, default_context_length, enable_preemption);
-    std::cout << "Model loaded: " << this->model_path << std::endl;
+    
     this->q4nx = std::make_unique<Q4NX>(this->model_path);
     // lm_config->model_type == qwen3
     this->lm_engine = std::make_unique<gemma4e_npu>(*this->lm_config, this->npu.get(), this->MAX_L);

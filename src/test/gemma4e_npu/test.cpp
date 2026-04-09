@@ -68,14 +68,14 @@ int main(int argc, char* argv[]) {
     // chat->set_topk(1);
 
     if (short_prompt) {
-        uniformed_input.prompt = "What is in this image?";
+        uniformed_input.prompt = "What are these image?";
         // // uniformed_input.prompt = "Solve the equation x^3 - 1 = 0 for me.";
         uniformed_input.images.push_back("../../../tb_files/panda.png");
-        // uniformed_input.images.push_back("../../../tb_files/puppy.png");
+        uniformed_input.images.push_back("../../../tb_files/puppy.png");
         
         // uniformed_input.images.push_back("../../../tb_files/mj_icon.jpg");
         // uniformed_input.images.push_back("../../../tb_files/google_icon.png");
-        // uniformed_input.images.push_back("../../../tb_files/pcb.jpg");
+        uniformed_input.images.push_back("../../../tb_files/pcb.jpg");
         
         std::cout << "Prompt: " << uniformed_input.prompt << std::endl;
         std::cout << "Response: " << std::endl;

@@ -105,8 +105,7 @@ class LM_Config{
 
 
             // config for vision
-            {     
-                std::cout << "debug: loading vision and audio config" << std::endl;
+            {
                 JSON_GET(this->vision_model_weight, this->_json_config, "vision_model_weight", "", std::string);
                 JSON_GET(this->_vision_config, this->_json_config, "vision_config", nlohmann::json::object(), nlohmann::json);
                 JSON_GET(this->_audio_config, this->_json_config, "audio_config", nlohmann::json::object(), nlohmann::json);
