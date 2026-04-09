@@ -631,44 +631,37 @@ void RestHandler::handle_embeddings(const json& request,
                                    StreamResponseCallback send_streaming_response) {
     try {
         std::string model = request["model"];
-        //std::string input = request["input"];
-        std::string input;
+        std::vector<std::string> inputs;
+
         if (request["input"].is_string()) {
-            input = request["input"];
+            inputs.push_back(request["input"].get<std::string>());
         }
-        else if (request["input"].is_array() && !request["input"].empty()) {
-            bool first = true;
+        else if (request["input"].is_array()) {
             for (const auto& item : request["input"]) {
-                if (!item.is_string()) continue;
-
-                if (!first) input += "\n";  
-                input += item.get<std::string>();
-                first = false;
-            }           
+                inputs.push_back(item.get<std::string>());
+            }
         }
 
-        //std::string encoding_format = request["encoding_format"];
-
-        
         json response;
         if (this->embed) {
+            json embedding_data = json::array();
 #ifndef FASTFLOWLM_LINUX_LIMITED_MODELS
-            std::cout << "Embedding input: " << "\n" << input << std::endl;
-            std::vector<float> embedding_result = this->auto_embedding_engine->embed(input, embedding_task_type_t::task_query);
+            for (size_t i = 0; i < inputs.size(); ++i) {
+                std::cout << "Embedding input[" << i << "]: " << "\n" << inputs[i] << std::endl;
+                std::vector<float> embedding_result = this->auto_embedding_engine->embed(inputs[i], embedding_task_type_t::task_query);
+                embedding_data.push_back({
+                    {"object", "embedding"},
+                    {"embedding", embedding_result},
+                    {"index", i}
+                });
+            }
 #else
             throw std::runtime_error("Embedding models are not supported in this build");
-            std::vector<float> embedding_result;
 #endif
-            
+
             response = {
                 {"object", "list"},
-                {"data", json::array({
-                    {
-                        {"object", "embedding"},
-                        {"embedding", embedding_result},
-                        {"index", 0}
-                    }
-                })},
+                {"data", embedding_data},
                 {"model", model},
                 {"usage", {
                     {"prompt_tokens", 0},
@@ -680,7 +673,7 @@ void RestHandler::handle_embeddings(const json& request,
             header_print("Warning", "No embedding model loaded");
         }
         send_response(response);
-    } 
+    }
     catch (const std::exception& e) {
         json error_response = {{"error", e.what()}};
         send_response(error_response);

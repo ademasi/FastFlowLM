@@ -25,7 +25,7 @@ Run large language models — now with **Vision**, **Audio**, **Embedding** and 
 
   🔽 **[Download](https://github.com/FastFlowLM/FastFlowLM/releases/latest/download/flm-setup.exe)** | 📊 **[Benchmarks](https://fastflowlm.com/docs/benchmarks/)** | 📦 **[Model List](https://fastflowlm.com/docs/models/)**  
 
-  🐧 **[Linux Getting Started Guide](https://fastflowlm.com/docs/install_lin/)**
+  🐧 **[Linux Getting Started Guide](./docs/linux-getting-started.md)**
 
   📖 **[Docs](https://fastflowlm.com/docs)** | 📺 **[Demos](https://www.youtube.com/@FastFlowLM-YT/playlists)** | 🧪 **[Test Drive](https://fastflowlm.com/docs/#-test-drive-remote-demo)** | 💬 **[Discord](https://discord.gg/z24t23HsHF)** 
 
