@@ -65,27 +65,12 @@ int main(int argc, char* argv[]) {
     header_print("info", "Model loaded");
     chat_meta_info_t meta_info;
     lm_uniform_input_t uniformed_input;
-    // chat->set_topk(1);
+    chat->set_topk(1);
 
     if (short_prompt) {
 
-
-        // uniformed_input.prompt = "What is the distance from earth to moon? Can you do a basic calculation that how long does it take for light to do a round trip between moon and earth?";
-        
-        uniformed_input.prompt = "What are these image?";
-        uniformed_input.audios.push_back("/home/shouyud/liquid-mega-kernel-npu/python_code/gemma4/Demos_sample-data_journal.wav");
-        uniformed_input.audios.push_back("/home/shouyud/liquid-mega-kernel-npu/python_code/gemma4/tenyears_00_curry_128kb.mp3");        
-        uniformed_input.audios.push_back("/home/shouyud/liquid-mega-kernel-npu/python_code/qwen3_tts/output_voice_clone.wav");        
-
-        // // uniformed_input.prompt = "Solve the equation x^3 - 1 = 0 for me.";
-        uniformed_input.images.push_back("../../../tb_files/panda.png");
-        uniformed_input.images.push_back("../../../tb_files/puppy.png");
-        
-        // uniformed_input.images.push_back("../../../tb_files/mj_icon.jpg");
-        // uniformed_input.images.push_back("../../../tb_files/google_icon.png");
-        // uniformed_input.images.push_back("../../../tb_files/mj_icon.jpg");
-        // uniformed_input.images.push_back("../../../tb_files/google_icon.png");
-        uniformed_input.images.push_back("../../../tb_files/pcb.jpg");
+        // Phase 0: test text input
+        uniformed_input.prompt = "Hello, introduce yourself briefly.";
         
         std::cout << "Prompt: " << uniformed_input.prompt << std::endl;
         std::cout << "Response: " << std::endl;
@@ -96,9 +81,32 @@ int main(int argc, char* argv[]) {
         std::cout << std::endl;
         std::cout << chat->show_profile() << std::endl;
         uniformed_input.images.clear();
-        // uniformed_input.images.push_back("../../../tb_files/pcb.jpg");
+        uniformed_input.audios.clear();
         
-        uniformed_input.prompt = "Can I play game on the moon?";
+        // Phase 2: test image
+        uniformed_input.prompt = "What are these image?";   
+
+        uniformed_input.images.push_back("../../../tb_files/panda.png");
+        uniformed_input.images.push_back("../../../tb_files/puppy.png");
+        uniformed_input.images.push_back("../../../tb_files/pcb.jpg");
+        
+        std::cout << "Prompt: " << uniformed_input.prompt << std::endl;
+        std::cout << "Response: " << std::endl;
+        chat->start_total_timer();
+        response = chat->generate_with_prompt(meta_info, uniformed_input, 8192, std::cout);
+        chat->stop_total_timer();
+        std::cout << std::endl;
+        std::cout << std::endl;
+        std::cout << chat->show_profile() << std::endl;
+        uniformed_input.images.clear();
+        uniformed_input.audios.clear();
+        
+        // Phase 3: test audio
+        uniformed_input.prompt = "What are in the audio files?";
+
+        uniformed_input.audios.push_back("../../../tb_files/Demos_sample-data_journal.wav");
+        uniformed_input.audios.push_back("../../../tb_files/tenyears_00_curry_128kb.mp3");        
+        uniformed_input.audios.push_back("../../../tb_files/output_voice_clone.wav");     
         
         std::cout << "Prompt: " << uniformed_input.prompt << std::endl;
         std::cout << "Response: " << std::endl;

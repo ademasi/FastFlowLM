@@ -74,6 +74,7 @@
                     "tokenizer.json",
                     "tokenizer_config.json",
                     "vision_weight.q4nx",
+                    "audio_weight.q4nx",
                     "chat_template.jinja"
                 ],
                 "vlm": true,

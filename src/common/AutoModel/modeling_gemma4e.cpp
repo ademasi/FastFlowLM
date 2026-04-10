@@ -1,9 +1,9 @@
-/// \file deepseek.cpp
-/// \brief deepseek class
+/// \file modeling_gemma4e.cpp
+/// \brief Gemma4e class
 /// \author FastFlowLM Team
 /// \date 2025-09-01
 /// \version 0.9.24
-/// \note This is a source file for the deepseek class
+/// \note This is a source file for the Gemma4e class
 
 
 #include "AutoModel/modeling_gemma4e.hpp"
@@ -63,7 +63,6 @@ std::string Gemma4e::apply_chat_template(nlohmann::ordered_json& messages, nlohm
 
 bool Gemma4e::insert(chat_meta_info_t& meta_info, lm_uniform_input_t& input) {
     // preprocess
-    constexpr int image_soft_token_id = 258880;
     this->profiler_list[TKOEN_ENCODE_TIME].start();
     std::string templated_text;
     if (input.messages.empty() && input.prompt.empty()) {
@@ -110,16 +109,11 @@ bool Gemma4e::insert(chat_meta_info_t& meta_info, lm_uniform_input_t& input) {
         } 
     }
     if(input.audios.size() > 0){
-        
-
-
-        //load a reference tensor
-        SafeTensors reference_audio_preprocess_tensor("/home/shouyud/liquid-mega-kernel-npu/python_code/gemma4/audio_preprocess_debug.safetensors");
 
         std::vector<audio_data_t> audio_data_list;
         for(int i = 0; i < input.audios.size(); i++){
             std::string audio_str = input.audios[i];
-            std::cout << "loading audio: " << audio_str << std::endl;
+            
             gemma4e_npu *gemma4e_engine = dynamic_cast<gemma4e_npu*>(this->lm_engine.get());
             audio_data_t audio_data = this->load_audio(audio_str ,gemma4e_engine->Gemma4E_Audio_resample_rate, MonoDownmixMode::MEAN); 
             if(audio_data.channels > 1){
@@ -127,58 +121,13 @@ bool Gemma4e::insert(chat_meta_info_t& meta_info, lm_uniform_input_t& input) {
                 exit(-1);
             }
 
-
-        //     buffer<float> audio_tensor_Ref;
-        //     reference_audio_preprocess_tensor.load_weights(audio_tensor_Ref, "raw_speech_"+std::to_string(i));
-            
-        //    std::cout << "Error analysis for audio preprocessing, comparing with reference tensor from safetensors..." << std::endl;
-        //     print_error_metrics<float, float>(
-        //         audio_data.samples.data(),
-        //         audio_tensor_Ref.data(),
-        //         1, 
-        //         1, audio_data.num_samples,
-        //         1, audio_data.num_samples
-
-        //     );
-
-
             // apply clipping 
             //TODO make 30.0 second as a configurable parameter later
             audio_data = this->clip_audio_length(audio_data, max_support_audio_length_seconds); // clip to 30 seconds, which is the max audio length that Gemma4e can handle
 
-
- 
             audio_data_list.push_back(audio_data);
 
         }
-
-        // {   
-        //     buffer<float>batched_speech_reference;
-        //     reference_audio_preprocess_tensor.load_weights(batched_speech_reference, "batched_speech");
-        //     std::cout << "Error analysis for batched audio preprocessing tensor, comparing with reference tensor from safetensors..." << std::endl;
-        //     // concatenate the audio data into a batched
-        //     int length_per_reference_audio = 480000; // for debug
-
-        //     for(int i = 0; i < audio_data_list.size(); i++){
-
-        //         print_error_metrics<float, float>(
-        //             audio_data_list[i].samples.data(),
-        //             batched_speech_reference.data() + i * length_per_reference_audio,
-        //             1, 
-        //             1, audio_data_list[i].num_samples,
-        //             1, length_per_reference_audio
-
-        //         );
-        //         // printout the info of each audio data
-        //         header_print("Audio Preprocess Debug", "Audio " + std::to_string(i) + ": original sample rate = " + std::to_string(audio_data_list[i].original_sample_rate
-        //         ) + ", resampled sample rate = " + std::to_string(audio_data_list[i].sample_rate) + ", original channels = " + std::to_string(audio_data_list[i].original_channels) + ", resampled channels = " + std::to_string(audio_data_list[i].channels) + ", duration = " + std::to_string(audio_data_list[i].duration_seconds) + " seconds, num_samples = " + std::to_string(audio_data_list[i].num_samples));   
-
-        //     }
-
-
-
-        // }
-
 
        this->extract_spectrogram(audio_data_list, audio_payload);
 
@@ -193,9 +142,6 @@ bool Gemma4e::insert(chat_meta_info_t& meta_info, lm_uniform_input_t& input) {
             const unsigned int conv2d_stride = gemma4e_engine->Gemma4E_Audio_conv2d_Stride;
             const unsigned int conv2d_padding = gemma4e_engine->Gemma4e_Audio_conv2d_Padding;
             const unsigned int max_audio_seq_length =max_support_audio_length_seconds * gemma4e_engine->Gemma4E_Audio_resample_rate;    // calculate from 30 second using gemma4e->Gemma4E_Audio_resample_rate
-
-
-
             
             constexpr float frame_length_ms = 20.0f;
             constexpr float hop_length_ms   = 10.0f;
@@ -226,44 +172,24 @@ bool Gemma4e::insert(chat_meta_info_t& meta_info, lm_uniform_input_t& input) {
                     assert(t< max_audio_seq_length);
                     num_tokens =t;
                 }
-                std::cout <<"max_audio_seq_length: " << max_audio_seq_length << ", calculated num_tokens for audio " << i << ": " << num_tokens << std::endl;
+                
                 audio_payload.num_soft_tokens_per_audio.push_back(num_tokens);
             }
         }
 
         // print out the actual info for each audio_payload.audio
-        for(int i = 0; i < audio_payload.num_audios; i++){
-            header_print("Audio Preprocess Debug", "Audio " + std::to_string(i) 
-                + ": mel spectrogram frames = " + std::to_string(audio_payload.mel_spectrogram_frames_per_audio[i]) 
-                + ", mel spectrogram bins = " + std::to_string(audio_payload.mel_spectrogram_bins_per_audio[i])
-                + ", num_soft_tokens = " + std::to_string(audio_payload.num_soft_tokens_per_audio[i]));
-        }   
-        // {
-
-        //     int length_per_reference_audio_spectrogram = 2999 * 128;
-        //     buffer<float> prepared_speech_reference;
-        //     reference_audio_preprocess_tensor.load_weights(prepared_speech_reference, "prepared_speech");
-        //     std::cout << "Error analysis for prepared spectrogram tensor, comparing with reference tensor from safetensors..." << std::endl;
-        //     for(int i = 0; i < audio_payload.num_audios; i++){
-        //         print_error_metrics<bf16, float>(
-        //             audio_payload.mel_spectrograms[i].data(),
-        //             prepared_speech_reference.data() + i * length_per_reference_audio_spectrogram,
-        //             1, 
-        //             1, audio_payload.mel_spectrogram_frames_per_audio[i] * audio_payload.mel_spectrogram_bins_per_audio[i],
-        //             1, audio_payload.mel_spectrogram_frames_per_audio[i] * audio_payload.mel_spectrogram_bins_per_audio[i]
-        //         );
-
-        //     }       
-
-
-        // }    
-
+        // for(int i = 0; i < audio_payload.num_audios; i++){
+        //     header_print("Audio Preprocess Debug", "Audio " + std::to_string(i) 
+        //         + ": mel spectrogram frames = " + std::to_string(audio_payload.mel_spectrogram_frames_per_audio[i]) 
+        //         + ", mel spectrogram bins = " + std::to_string(audio_payload.mel_spectrogram_bins_per_audio[i])
+        //         + ", num_soft_tokens = " + std::to_string(audio_payload.num_soft_tokens_per_audio[i]));
+        // }   
     }
     if (!input.messages.empty()) { // already a formated messages, usually from REST API
-        json qwenvl_message = json::array();
+        json gemma4_message = json::array();
         for (const auto& item : input.messages) {
             if (!item.contains("images")) {
-                qwenvl_message.push_back(item);
+                gemma4_message.push_back(item);
                 continue;
             }
 
@@ -285,11 +211,11 @@ bool Gemma4e::insert(chat_meta_info_t& meta_info, lm_uniform_input_t& input) {
                 {"content", newContent}
             };
 
-            qwenvl_message.push_back(newItem);
+            gemma4_message.push_back(newItem);
         }
-        templated_text = this->apply_chat_template(qwenvl_message, input.tools);
+        templated_text = this->apply_chat_template(gemma4_message, input.tools);
         int total_images = 0;
-        for (auto& message : qwenvl_message) {
+        for (auto& message : gemma4_message) {
             auto content = message.value("content", nlohmann::ordered_json::array());
             for (auto& item : content) {
                 if (item.contains("type") && item["type"] == "image") {
@@ -335,7 +261,13 @@ bool Gemma4e::insert(chat_meta_info_t& meta_info, lm_uniform_input_t& input) {
             image_obj["image"] = input.images[i];
             content["content"].push_back(image_obj);
         }
-        //TODO: fixme , add the audio
+        // Add audio objects to content array
+        for (int i = 0; i < input.audios.size(); i++) {
+            nlohmann::ordered_json audio_obj;
+            audio_obj["type"] = "audio";
+            audio_obj["audio"] = input.audios[i];
+            content["content"].push_back(audio_obj);
+        }
         
         // Add text object to content array
         nlohmann::ordered_json text_obj;
@@ -348,29 +280,41 @@ bool Gemma4e::insert(chat_meta_info_t& meta_info, lm_uniform_input_t& input) {
     }
     std::vector<int> tokens_init = this->tokenizer->encode(templated_text);
 
-
-    //TODO: FIXME: also add the audi token to it
-
     // update the tokens to include the image tokens
     std::vector<int> tokens;
     int total_image_tokens = 0;
     for (int i = 0; i < input.images.size(); i++) {
         total_image_tokens += image_payload.num_soft_tokens_per_image[i];
     }
+    int total_audio_tokens = 0;
+    for (int i = 0; i < input.audios.size(); i++) {
+        total_audio_tokens += audio_payload.num_soft_tokens_per_audio[i];
+    }
+
     
-    tokens.reserve(tokens_init.size() + total_image_tokens);
+    tokens.reserve(tokens_init.size() + total_image_tokens + total_audio_tokens);
     
     int image_counter = 0;
+    int audio_counter = 0;
    
     for (int i = 0; i < tokens_init.size(); i++) {
-        if (tokens_init[i] == image_soft_token_id) {
-            tokens.push_back(255999); // the first image soft token id, which is reserved for the model to identify the image position, the rest of the soft tokens for this image will be continuous following this id
+        if (tokens_init[i] == image_token_id) {
+            tokens.push_back(boi_token_id); // the first image soft token id, which is reserved for the model to identify the image position, the rest of the soft tokens for this image will be continuous following this id
             for (int j = 0; j <  image_payload.num_soft_tokens_per_image[image_counter]; j++) {
-                tokens.push_back(image_soft_token_id);
+                tokens.push_back(image_token_id);
             }
-            tokens.push_back(258882); // a separator token between images, not necessary but can help the model to better distinguish different images
+            tokens.push_back(eoi_token_id); // a separator token between images, not necessary but can help the model to better distinguish different images
             image_counter++;
-        } else {
+        } 
+        else if (tokens_init[i] == audio_token_id){
+            tokens.push_back(boa_token_id); // the first audio soft token id, which is reserved for the model to identify the audio position, the rest of the soft tokens for this audio will be continuous following this id
+            for (int j = 0; j <  audio_payload.num_soft_tokens_per_audio[audio_counter]; j++) {
+                tokens.push_back(audio_token_id);
+            }
+            tokens.push_back(eoa_token_id); // a separator token between audios, not necessary but can help the model to better distinguish different audios
+            audio_counter++;
+        }
+        else {
             //TODO: FIXME: not sure if it can detect token token fr  now
             tokens.push_back(tokens_init[i]);
         }

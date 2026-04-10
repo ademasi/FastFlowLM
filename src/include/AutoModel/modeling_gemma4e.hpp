@@ -24,6 +24,14 @@
 /************              Qwen3VL_4b            **************/
 class Gemma4e : public AutoModel {
 private:
+    // some model specific template variables
+    static constexpr int boi_token_id = 255999; // begin of image token id
+    static constexpr int image_token_id = 258880; // image token id
+    static constexpr int eoi_token_id = 258882; // end of image token id
+
+    static constexpr int boa_token_id = 256000; // begin of audio token id
+    static constexpr int audio_token_id = 258881; // audio token id
+    static constexpr int eoa_token_id = 258883; // end of audio token id
 
     bool enable_think = false;
     bool enable_tool = false;
