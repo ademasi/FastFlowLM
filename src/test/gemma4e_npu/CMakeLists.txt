@@ -26,13 +26,14 @@ add_npu_test(
         "${CMAKE_SOURCE_DIR}/../../common/image_process_utils/imageproc.cpp"
         "${CMAKE_SOURCE_DIR}/../../common/image_process_utils/imageprocAVX512.cpp"
         "${CMAKE_SOURCE_DIR}/../../common/image/image_reader.cpp"
-        "${CMAKE_SOURCE_DIR}/../../common/image/audio_reader.cpp"       
+        "${CMAKE_SOURCE_DIR}/../../common/audio/audio_reader.cpp"       
         "${CMAKE_SOURCE_DIR}/../../common/audio_process_utils/audioproc.cpp"
         "${CMAKE_SOURCE_DIR}/../../common/audio_process_utils/audioprocAVX512.cpp"
 )
 
 target_compile_definitions(test_gemma4e_npu PUBLIC
     USEAVX512=1
+    __FLM_VERSION__="0.9.39"
 )
 
 # Add OpenMP compiler flags if available
@@ -42,6 +43,9 @@ if(OpenMP_CXX_FOUND)
         $<$<NOT:$<CXX_COMPILER_ID:MSVC>>:-fopenmp>
     )
 endif()
+target_link_directories(test_gemma4e_npu PUBLIC
+    ${CMAKE_SOURCE_DIR}/../../external_libs
+)
 
 target_link_libraries(test_gemma4e_npu PUBLIC
     gemma4e_npu
@@ -50,8 +54,11 @@ target_link_libraries(test_gemma4e_npu PUBLIC
     avcodec
     avutil
     swscale
+    swresample
     zlib
-    fftw3f
+    libfftw3-3
+    libfftw3f-3
+    libfftw3l-3
 )
 
 # Link OpenMP if available

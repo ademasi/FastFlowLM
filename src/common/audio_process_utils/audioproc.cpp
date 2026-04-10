@@ -1,6 +1,10 @@
 #include "audio_process_utils/audioproc.hpp"
 #include "audio_process_utils/audioprocAVX512.hpp"
 #include <algorithm>
+// Ensure M_PI is available on MSVC and other platforms that omit it
+#ifndef M_PI
+#define M_PI 3.14159265358979323846
+#endif
 
 namespace audioproc {
 
