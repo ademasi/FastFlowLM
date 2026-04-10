@@ -281,24 +281,32 @@ void RestHandler::ensure_embed_model_loaded(const std::string& model_tag) {
 ///@param options the options JSON object
 ///@param request the request JSON object
 void RestHandler::configure_chat_engine_parameters(const json& options, const json& request) {
-    if (options.contains("temperature")) {
-        float temperature = options["temperature"];
+    if (request.contains("temperature")) {
+        float temperature = request["temperature"];
         auto_chat_engine->set_temperature(temperature);
     }
-    if (options.contains("top_p")) {
-        float top_p = options["top_p"];
+    if (request.contains("top_p")) {
+        float top_p = request["top_p"];
         auto_chat_engine->set_topp(top_p);
     }
-    if (options.contains("top_k")) {
-        int top_k = options["top_k"];
+    if (request.contains("top_k")) {
+        int top_k = request["top_k"];
         auto_chat_engine->set_topk(top_k);
     }
-    if (options.contains("frequency_penalty")) {
-        float frequency_penalty = options["frequency_penalty"];
+    if (request.contains("min_p")) {
+        int min_p = request["min_p"];
+        auto_chat_engine->set_minp(min_p);
+    }
+    if (request.contains("presence_penalty")) {
+        float presence_penalty = request["presence_penalty"];
+        auto_chat_engine->set_presence_penalty(presence_penalty);
+    }
+    if (request.contains("frequency_penalty")) {
+        float frequency_penalty = request["frequency_penalty"];
         auto_chat_engine->set_frequency_penalty(frequency_penalty);
     }
-    if (options.contains("repetition_penalty")) {
-        float repetition_penalty = options["repetition_penalty"];
+    if (request.contains("repetition_penalty")) {
+        float repetition_penalty = request["repetition_penalty"];
         auto_chat_engine->set_repetition_penalty(repetition_penalty);
     }
     if (request.contains("think")) {
@@ -631,44 +639,37 @@ void RestHandler::handle_embeddings(const json& request,
                                    StreamResponseCallback send_streaming_response) {
     try {
         std::string model = request["model"];
-        //std::string input = request["input"];
-        std::string input;
+        std::vector<std::string> inputs;
+
         if (request["input"].is_string()) {
-            input = request["input"];
+            inputs.push_back(request["input"].get<std::string>());
         }
-        else if (request["input"].is_array() && !request["input"].empty()) {
-            bool first = true;
+        else if (request["input"].is_array()) {
             for (const auto& item : request["input"]) {
-                if (!item.is_string()) continue;
-
-                if (!first) input += "\n";  
-                input += item.get<std::string>();
-                first = false;
-            }           
+                inputs.push_back(item.get<std::string>());
+            }
         }
 
-        //std::string encoding_format = request["encoding_format"];
-
-        
         json response;
         if (this->embed) {
+            json embedding_data = json::array();
 #ifndef FASTFLOWLM_LINUX_LIMITED_MODELS
-            std::cout << "Embedding input: " << "\n" << input << std::endl;
-            std::vector<float> embedding_result = this->auto_embedding_engine->embed(input, embedding_task_type_t::task_query);
+            for (size_t i = 0; i < inputs.size(); ++i) {
+                std::cout << "Embedding input[" << i << "]: " << "\n" << inputs[i] << std::endl;
+                std::vector<float> embedding_result = this->auto_embedding_engine->embed(inputs[i], embedding_task_type_t::task_query);
+                embedding_data.push_back({
+                    {"object", "embedding"},
+                    {"embedding", embedding_result},
+                    {"index", i}
+                });
+            }
 #else
             throw std::runtime_error("Embedding models are not supported in this build");
-            std::vector<float> embedding_result;
 #endif
-            
+
             response = {
                 {"object", "list"},
-                {"data", json::array({
-                    {
-                        {"object", "embedding"},
-                        {"embedding", embedding_result},
-                        {"index", 0}
-                    }
-                })},
+                {"data", embedding_data},
                 {"model", model},
                 {"usage", {
                     {"prompt_tokens", 0},
@@ -680,7 +681,7 @@ void RestHandler::handle_embeddings(const json& request,
             header_print("Warning", "No embedding model loaded");
         }
         send_response(response);
-    } 
+    }
     catch (const std::exception& e) {
         json error_response = {{"error", e.what()}};
         send_response(error_response);
@@ -860,11 +861,8 @@ void RestHandler::handle_openai_chat_completion(const json& request,
         // Extract OpenAI-style parameters
         json current_messages = request["messages"];
         std::string model = request.value("model", current_model_tag);
-        std::string reasoning_effort = request.value("reasoning_effort", "medium");
         bool stream = request.value("stream", false);
-        // max_tokens (preferred) or max_completion_tokens for OpenAI compatibility
-        int length_limit = request.value("max_tokens",
-                                         request.value("max_completion_tokens", 4096));
+        int length_limit = request.value("max_tokens", request.value("max_completion_tokens", 4096));
         json tools = request.value("tools", json::array());
         json options = request.value("options", json::object());
 
@@ -875,6 +873,8 @@ void RestHandler::handle_openai_chat_completion(const json& request,
             return;
         }
         auto load_end_time = time_utils::now();
+
+        configure_chat_engine_parameters(options, request);
 
         current_messages = normalize_messages(current_messages);
         current_messages = normalize_template(current_messages);
@@ -900,37 +900,6 @@ void RestHandler::handle_openai_chat_completion(const json& request,
                 messages = current_messages;
             }
         }
-
-        // OpenAI API doesn't put the parameters into options
-        if (request.contains("temperature")) {
-            float temperature = request["temperature"];
-            auto_chat_engine->set_temperature(temperature);
-        }
-        if (request.contains("top_p")) {
-            float top_p = request["top_p"];
-            auto_chat_engine->set_topp(top_p);
-        }
-        if (request.contains("top_k")) {
-            int top_k = request["top_k"];
-            auto_chat_engine->set_topk(top_k);
-        }
-        if (request.contains("min_p")) {
-            int min_p = request["min_p"];
-            auto_chat_engine->set_minp(min_p);
-        }
-        if (request.contains("presence_penalty")) {
-            float presence_penalty = request["presence_penalty"];
-            auto_chat_engine->set_presence_penalty(presence_penalty);
-        }
-        if (request.contains("frequency_penalty")) {
-            float frequency_penalty = request["frequency_penalty"];
-            auto_chat_engine->set_frequency_penalty(frequency_penalty);
-        }
-        if (request.contains("repetition_penalty")) {
-            float repetition_penalty = request["repetition_penalty"];
-            auto_chat_engine->set_repetition_penalty(repetition_penalty);
-        }
-        configure_chat_engine_parameters(options, request);
 
         chat_meta_info_t meta_info;
         lm_uniform_input_t uniformed_input;

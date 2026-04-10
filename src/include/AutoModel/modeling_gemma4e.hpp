@@ -40,7 +40,7 @@ private:
     audio_data_t clip_audio_length(audio_data_t& audio, double max_duration_second);
     void extract_spectrogram(std::vector<audio_data_t>& audio_inputs, gemma4e_audio_payload_t& audio_payload);
 
-    int image_softtoken_budget = 280; // set a default value
+    int image_softtoken_budget = 560; // set a default value
 
     int debug_count= 0;
 
