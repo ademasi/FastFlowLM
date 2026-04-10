@@ -158,7 +158,8 @@ public:
     unsigned int Audio_MM_TILE_N;
     int Gemma4E_Audio_resample_rate;
     float Gemma4E_Audio_gradient_clipping;
-    unsigned int Gemma4E_Audio_OUTPUT_SIZE;
+    unsigned int Gemma4E_Audio_Multimodal_Output_SIZE;
+    unsigned int Gemma4E_Audio_language_projection_output_size;
     unsigned int Gemma4E_Audio_HIDDEN_SIZE;
     unsigned int Gemma4E_Audio_INTERMEDIATE_SIZE;
     unsigned int Gemma4E_Audio_attention_chunk_size;
@@ -167,11 +168,13 @@ public:
     unsigned int Gemma4E_Audio_num_attention_heads;
     unsigned int Gemma4E_Audio_num_attention_layers;
     unsigned int Gemma4E_Audio_conv1d_kernel_size;
+    unsigned int Gemma4E_Audio_conv1d_stride;
     unsigned int Gemma4E_Audio_conv2d_kernel_size;
     unsigned int Gemma4E_Audio_conv2d_Stride;
     unsigned int Gemma4e_Audio_conv2d_Padding;
     unsigned int Gemma4E_Audio_subsampling_conv_channels_0;
     unsigned int Gemma4E_Audio_subsampling_conv_channels_1;
+    float Gemma4E_Audio_attention_softcap;
 
 
     inline void load_vision_preprocess_parameters(LM_Config& config){
@@ -198,7 +201,8 @@ public:
         Audio_MM_TILE_N = config._audio_config.value("Audio_MM_TILE_N", 64);
         Gemma4E_Audio_resample_rate = config._audio_config.value("Gemma4E_Audio_audio_resample_rate", -1);
         Gemma4E_Audio_gradient_clipping = config._audio_config.value("Gemma4E_Audio_gradient_clipping", -1.0f);
-        Gemma4E_Audio_OUTPUT_SIZE = config._audio_config.value("Gemma4E_Audio_OUTPUT_SIZE", -1);
+        Gemma4E_Audio_Multimodal_Output_SIZE = config._audio_config.value("Gemma4E_Audio_Multimodal_Output_SIZE", -1);
+        Gemma4E_Audio_language_projection_output_size = config._audio_config.value("Gemma4E_Audio_language_projection_output_size", -1);
         Gemma4E_Audio_HIDDEN_SIZE = config._audio_config.value("Gemma4E_Audio_HIDDEN_SIZE", -1);
         Gemma4E_Audio_INTERMEDIATE_SIZE = config._audio_config.value("Gemma4E_Audio_INTERMEDIATE_SIZE", -1);
         Gemma4E_Audio_attention_chunk_size = config._audio_config.value("Gemma4E_Audio_attention_chunk_size", -1);
@@ -207,11 +211,13 @@ public:
         Gemma4E_Audio_num_attention_heads = config._audio_config.value("Gemma4E_Audio_num_attention_heads", -1);
         Gemma4E_Audio_num_attention_layers = config._audio_config.value("Gemma4E_Audio_num_attention_layers", -1);
         Gemma4E_Audio_conv1d_kernel_size = config._audio_config.value("Gemma4E_Audio_conv1d_kernel_size", -1);
+        Gemma4E_Audio_conv1d_stride = config._audio_config.value("Gemma4E_Audio_conv1d_stride", -1);
         Gemma4E_Audio_conv2d_kernel_size = config._audio_config.value("Gemma4E_conv2d_kernel_size", -1);
         Gemma4E_Audio_conv2d_Stride = config._audio_config.value("Gemma4E_conv2d_Stride", -1);
         Gemma4e_Audio_conv2d_Padding = config._audio_config.value("Gemma4e_conv2d_Padding", -1);
         Gemma4E_Audio_subsampling_conv_channels_0 = config._audio_config.value("Gemma4E_Audio_subsampling_conv_channels_0", -1);
         Gemma4E_Audio_subsampling_conv_channels_1 = config._audio_config.value("Gemma4E_Audio_subsampling_conv_channels_1", -1);
+        Gemma4E_Audio_attention_softcap = config._audio_config.value("Gemma4E_Audio_attention_softcap", -1.0f);
     }
 
 private:
