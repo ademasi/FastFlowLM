@@ -19,7 +19,6 @@ void Gemma4e::load_model(std::string model_path, json model_info, int default_co
     this->_shared_load_model(model_path, model_info, default_context_length, enable_preemption);
     
     this->q4nx = std::make_unique<Q4NX>(this->model_path);
-    // lm_config->model_type == qwen3
     this->lm_engine = std::make_unique<gemma4e_npu>(*this->lm_config, this->npu.get(), this->MAX_L);
 
     this->lm_engine->load_weights(*this->q4nx);
@@ -33,13 +32,13 @@ void Gemma4e::load_model(std::string model_path, json model_info, int default_co
     this->enable_tool = (model_info["size"] > 800000000)? true : false;
 
     sampler_config config;
-    config.top_k = 20;
-    config.top_p = 0.8;
+    config.top_k = 64;
+    config.top_p = 0.95;
     config.min_p = 0.0;
-    config.temperature = 0.7;
+    config.temperature = 1.0;
     config.rep_penalty = 1.0;
     config.freq_penalty = 1.0;
-    config.pre_penalty = 1.5f;
+    config.pre_penalty = 1.0f;
 
     this->set_sampler(config);
     for (size_t i = 0; i < PROFILER_TYPE_NUM; i++) {
@@ -57,7 +56,7 @@ std::string Gemma4e::apply_chat_template(nlohmann::ordered_json& messages, nlohm
     inputs.messages = messages;
     inputs.extra_context = this->extra_context;
     inputs.extra_context["enable_thinking"] = this->enable_think;
-    if (!tools.empty() && this->enable_tool)
+    if (!tools.empty())
         inputs.tools = tools;
     return this->chat_tmpl->apply(inputs);
 }
@@ -395,9 +394,6 @@ bool Gemma4e::insert(chat_meta_info_t& meta_info, lm_uniform_input_t& input) {
 }
 
 std::string Gemma4e::generate(chat_meta_info_t& meta_info, int length_limit, std::ostream& os, std::function<bool()> is_cancelled) {
-    if (this->enable_think) {
-        os << "<think>\n" << std::flush;
-    }
     return this->_shared_generate(meta_info, length_limit, os, is_cancelled);
 }
 
@@ -415,148 +411,232 @@ std::string Gemma4e::generate_with_prompt(chat_meta_info_t& meta_info, lm_unifor
 NonStreamResult Gemma4e::parse_nstream_content(const std::string response_text) {
     NonStreamResult result;
 
-    std::string name, arguments;
+    std::string think_start_tag = "<|channel>thought";
+    std::string think_end_tag = "<channel|>";
+    std::string tool_start_tag = "<|tool_call>";
+    std::string tool_end_tag = "<tool_call|>";
+    std::string tool_resp_tag = "<|tool_response>";
+    std::string custom_quote_tag = "<|\"|>";
 
-    std::string start_tag = "<tool_call>";
-    std::string end_tag = "</tool_call>";
+    size_t think_start_pos = response_text.find(think_start_tag);
+    size_t think_end_pos = response_text.find(think_end_tag);
+    size_t tool_start_pos = response_text.find(tool_start_tag);
+    size_t tool_end_pos = response_text.find(tool_end_tag);
 
-    size_t start_pos = response_text.find(start_tag);
-    size_t end_pos = response_text.find(end_tag);
+    bool is_reasoning = (think_start_pos != std::string::npos && think_end_pos != std::string::npos && think_end_pos > think_start_pos);
+    bool is_tool = (tool_start_pos != std::string::npos && tool_end_pos != std::string::npos && tool_end_pos > tool_start_pos);
 
-    if (start_pos == std::string::npos || end_pos == std::string::npos) {
-        // pure content
-        result.content = response_text;
-        return result;
+    // 1. Parse Reasoning Content
+    if (is_reasoning) {
+        size_t start = think_start_pos + think_start_tag.length();
+        result.reasoning_content = response_text.substr(start, think_end_pos - start);
     }
 
-    start_pos += start_tag.length();
-    std::string json_str = response_text.substr(start_pos, end_pos - start_pos);
+    // 2. Parse Tool Calling
+    if (is_tool) {
+        size_t start = tool_start_pos + tool_start_tag.length();
+        std::string tool_content = response_text.substr(start, tool_end_pos - start);
 
-    // Parse "name" 
-    std::string key_name = "\"name\": \"";
-    size_t name_start = json_str.find(key_name);
-    if (name_start != std::string::npos) {
-        name_start += key_name.length();
-        size_t name_end = json_str.find("\"", name_start);
-        if (name_end != std::string::npos) {
-            name = json_str.substr(name_start, name_end - name_start);
+        // Remove the "call:" prefix if it exists
+        std::string prefix = "call:";
+        if (tool_content.find(prefix) == 0) {
+            tool_content = tool_content.substr(prefix.length());
+        }
+
+        // Split into Name and Arguments
+        size_t brace_pos = tool_content.find('{');
+        if (brace_pos != std::string::npos) {
+            result.tool_name = tool_content.substr(0, brace_pos);
+            
+            // Keep the {} brackets for the arguments
+            std::string args_str = tool_content.substr(brace_pos);
+
+            // Convert custom quote tags <|"|> to standard double quotes "
+            size_t quote_pos = 0;
+            while ((quote_pos = args_str.find(custom_quote_tag, quote_pos)) != std::string::npos) {
+                args_str.replace(quote_pos, custom_quote_tag.length(), "\"");
+                quote_pos += 1;
+            }
+
+            // Wrap unquoted keys in double quotes to create valid JSON
+            // e.g., {query:"ai"} -> {"query":"ai"}
+            std::regex key_regex("([{,])\\s*([a-zA-Z0-9_]+)\\s*:");
+            args_str = std::regex_replace(args_str, key_regex, "$1\"$2\":");
+
+            result.tool_args = args_str;
+        } else {
+            // Fallback if no arguments were provided
+            result.tool_name = tool_content;
+            result.tool_args = "{}";
         }
     }
+    // 3. Parse Normal Content
+    else {
+        if (is_reasoning) {
+            // Content is whatever comes AFTER the reasoning block
+            result.content = response_text.substr(think_end_pos + think_end_tag.length());
+        } else {
+            // No reasoning, no tools -> the whole text is content
+            result.content = response_text;
+        }
 
-    // Parse "arguments"
-    std::string key_args = "\"arguments\":";
-    size_t args_pos = json_str.find(key_args);
-    if (args_pos != std::string::npos) {
-        size_t brace_start = json_str.find("{", args_pos);
-        size_t brace_end = json_str.rfind("}"); // Find the last closing brace
-
-        if (brace_start != std::string::npos && brace_end != std::string::npos && brace_end > brace_start) {
-            arguments = json_str.substr(brace_start, brace_end - brace_start);
+        // Cleanup: Strip out <|tool_response> if the model accidentally hallucinated it into plain text
+        size_t resp_pos = 0;
+        while ((resp_pos = result.content.find(tool_resp_tag, resp_pos)) != std::string::npos) {
+            result.content.erase(resp_pos, tool_resp_tag.length());
         }
     }
-
-    result.tool_name = name;
-    result.tool_args = arguments;
 
     return result;
 }
 
+
 // Stream
 StreamResult Gemma4e::parse_stream_content(const std::string content) {
-    std::string tool_start_tag = "<tool_call>";
-    std::string tool_end_tag = "</tool_call>";
-    std::string think_start_tag = "<think>";
-    std::string think_end_tag = "</think>";
+    const std::string MARKER_THINK_START = "<|channel>thought";
+    const std::string MARKER_THINK_END = "<channel|>";
+    const std::string MARKER_TOOL_START = "<|tool_call>";
+    const std::string MARKER_TOOL_END = "<tool_call|>";
+    const std::string MARKER_TOOL_RESP = "<|tool_response>";
+    const std::string MARKER_CUSTOM_QUOTE = "<|\"|>"; 
 
     StreamResult result;
-    result.type = StreamEventType::CONTENT;
+    buffer_ += content;
 
-    if (!is_in_tool_block_ && content.find(think_start_tag) != std::string::npos) {
-        current_mode_ = StreamEventType::REASONING;
-        result.type = StreamEventType::WAITING;
-        return result;
-    }
+    while (true) {
+        if (is_in_tool_block_) {
+            size_t tool_end_pos = buffer_.find(MARKER_TOOL_END);
+            
+            if (tool_end_pos != std::string::npos) {
+                std::string tool_content = buffer_.substr(0, tool_end_pos);
+                buffer_ = buffer_.substr(tool_end_pos + MARKER_TOOL_END.length());
+                is_in_tool_block_ = false;
 
-    if (!is_in_tool_block_ && content.find(think_end_tag) != std::string::npos) {
-        current_mode_ = StreamEventType::CONTENT;
-        result.type = StreamEventType::WAITING;
-        return result;
-    }
+                result.type = StreamEventType::TOOL_DONE;
+                
+                static int tool_counter = 0;
+                result.tool_id = "call_" + std::to_string(std::time(nullptr)) + "_" + std::to_string(tool_counter++);
 
-    if (!is_in_tool_block_ && current_mode_ == StreamEventType::REASONING) {
-        result.type = StreamEventType::REASONING;
-        result.content = content;
-        return result;
-    }
+                std::string prefix = "call:";
+                if (tool_content.find(prefix) == 0) {
+                    tool_content = tool_content.substr(prefix.length());
+                }
 
-    if (content.find(tool_start_tag) != std::string::npos) {
-        is_in_tool_block_ = true;
-        tool_name_.clear();
-        result.type = StreamEventType::WAITING;
-        return result;
-    }
+                size_t brace_pos = tool_content.find('{');
+                if (brace_pos != std::string::npos) {
+                    result.tool_name = tool_content.substr(0, brace_pos);
+                    
+                    std::string args_str = tool_content.substr(brace_pos);
+                    
+                    // Convert custom quote tags to standard double quotes
+                    size_t quote_pos = 0;
+                    while ((quote_pos = args_str.find(MARKER_CUSTOM_QUOTE, quote_pos)) != std::string::npos) {
+                        args_str.replace(quote_pos, MARKER_CUSTOM_QUOTE.length(), "\"");
+                        quote_pos += 1; 
+                    }
 
-    if (content.find(tool_end_tag) != std::string::npos) {
-        is_in_tool_block_ = false;
+                    // Wrap unquoted keys in double quotes
+                    // Because we kept the '{', this regex will now correctly trigger for the FIRST key too
+                    std::regex key_regex("([{,])\\s*([a-zA-Z0-9_]+)\\s*:");
+                    args_str = std::regex_replace(args_str, key_regex, "$1\"$2\":");
+                    
+                    result.tool_args_str = args_str;
+                } 
+                else {
+                    result.tool_name = tool_content;
+                    result.tool_args_str = "{}"; // Fallback if absolutely no braces exist
+                }
+                return result;
+            } 
+            else {
+                result.type = StreamEventType::WAITING;
+                return result;
+            }
+        }
 
-        try {
-            const std::string& block = tool_name_;
+        // Find the earliest occurring marker in the buffer to avoid skipping tags
+        size_t pos_tool_start = buffer_.find(MARKER_TOOL_START);
+        size_t pos_tool_resp  = buffer_.find(MARKER_TOOL_RESP);
+        size_t pos_think      = std::string::npos;
 
-            // Parse function name from <function=NAME>
-            std::string func_open = "<function=";
-            size_t func_start = block.find(func_open);
-            if (func_start != std::string::npos) {
-                func_start += func_open.length();
-                size_t func_end = block.find(">", func_start);
-                if (func_end != std::string::npos) {
-                    result.tool_name = block.substr(func_start, func_end - func_start);
+        if (current_mode_ == StreamEventType::CONTENT) {
+            pos_think = buffer_.find(MARKER_THINK_START);
+        } 
+        else if (current_mode_ == StreamEventType::REASONING) {
+            pos_think = buffer_.find(MARKER_THINK_END);
+        }
+
+        size_t min_pos = std::string::npos;
+        if (pos_tool_start != std::string::npos) min_pos = std::min(min_pos, pos_tool_start);
+        if (pos_tool_resp != std::string::npos)  min_pos = std::min(min_pos, pos_tool_resp);
+        if (pos_think != std::string::npos)      min_pos = std::min(min_pos, pos_think);
+
+        // Flush the text content before the earliest marker
+        if (min_pos != std::string::npos && min_pos > 0) {
+            result.content = buffer_.substr(0, min_pos);
+            result.type = current_mode_;
+            buffer_ = buffer_.substr(min_pos);
+            return result;
+        }
+
+        // Process the exact marker located at index 0
+        if (min_pos == 0) {
+            if (pos_tool_resp == 0) {
+                buffer_ = buffer_.substr(MARKER_TOOL_RESP.length());
+                continue;
+            }
+            if (pos_tool_start == 0) {
+                is_in_tool_block_ = true;
+                buffer_ = buffer_.substr(MARKER_TOOL_START.length());
+                continue;
+            }
+            if (pos_think == 0) {
+                if (current_mode_ == StreamEventType::CONTENT) {
+                    buffer_ = buffer_.substr(MARKER_THINK_START.length());
+                    current_mode_ = StreamEventType::REASONING;
+                } else {
+                    buffer_ = buffer_.substr(MARKER_THINK_END.length());
+                    current_mode_ = StreamEventType::CONTENT;
+                }
+                continue;
+            }
+        }
+
+        // Safe Flush Mechanism
+        std::vector<std::string> active_markers;
+        active_markers.push_back(MARKER_TOOL_START);
+        active_markers.push_back(MARKER_TOOL_RESP);
+
+        if (current_mode_ == StreamEventType::CONTENT) {
+            active_markers.push_back(MARKER_THINK_START);
+        } 
+        else if (current_mode_ == StreamEventType::REASONING) {
+            active_markers.push_back(MARKER_THINK_END);
+        }
+
+        size_t safe_flush_len = buffer_.length();
+        for (const auto& marker : active_markers) {
+            for (size_t i = 1; i <= marker.length() && i <= buffer_.length(); ++i) {
+                if (buffer_.compare(buffer_.length() - i, i, marker, 0, i) == 0) {
+                    safe_flush_len = std::min(safe_flush_len, buffer_.length() - i);
                 }
             }
-
-            // Parse parameters from <parameter=NAME>\nVALUE\n</parameter>
-            nlohmann::json args = nlohmann::json::object();
-            std::string param_open = "<parameter=";
-            std::string param_close = "</parameter>";
-            size_t search_pos = 0;
-            while (true) {
-                size_t p_start = block.find(param_open, search_pos);
-                if (p_start == std::string::npos) break;
-                p_start += param_open.length();
-                size_t p_name_end = block.find(">", p_start);
-                if (p_name_end == std::string::npos) break;
-                std::string param_name = block.substr(p_start, p_name_end - p_start);
-
-                size_t val_start = p_name_end + 1;
-                if (val_start < block.size() && block[val_start] == '\n') val_start++;
-
-                size_t val_end = block.find(param_close, val_start);
-                if (val_end == std::string::npos) break;
-
-                std::string param_value = block.substr(val_start, val_end - val_start);
-                if (!param_value.empty() && param_value.back() == '\n') param_value.pop_back();
-
-                args[param_name] = param_value;
-                search_pos = val_end + param_close.length();
-            }
-
-            result.type = StreamEventType::TOOL_DONE;
-            result.tool_id = "call_" + std::to_string(std::time(nullptr));
-            result.tool_args_str = args.dump();
         }
-        catch (...) {
-            result.type = StreamEventType::CONTENT;
-            result.content = "[Error parsing tool call]";
+
+        if (safe_flush_len > 0) {
+            result.content = buffer_.substr(0, safe_flush_len);
+            result.type = current_mode_;
+            buffer_ = buffer_.substr(safe_flush_len);
+            return result;
+        } 
+        else if (buffer_.length() > 0) {
+            result.type = StreamEventType::WAITING;
+            return result;
         }
-        return result;
+
+        break;
     }
 
-    if (is_in_tool_block_) {
-        tool_name_ += content;
-        result.type = StreamEventType::WAITING;
-        return result;
-    }
-
-    result.content = content;
+    result.type = current_mode_;
     return result;
-
 }
