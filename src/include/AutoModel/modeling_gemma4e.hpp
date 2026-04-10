@@ -24,6 +24,7 @@
 /************              Qwen3VL_4b            **************/
 class Gemma4e : public AutoModel {
 private:
+
     bool enable_think = false;
     bool enable_tool = false;
     void setup_tokenizer(std::string model_path);
@@ -43,13 +44,6 @@ private:
 
     int debug_count= 0;
 
-    int boi_token_id;
-    int image_soft_token_id;
-    int eoi_token_id;
-
-    int boa_token_id;
-    int audio_soft_token_id;
-    int eoa_token_id;
     
     void preprocess_image(
       gemma4e_image_t &image,

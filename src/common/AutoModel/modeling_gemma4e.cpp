@@ -49,13 +49,6 @@ void Gemma4e::load_model(std::string model_path, json model_info, int default_co
 
 void Gemma4e::setup_tokenizer(std::string model_path) {
     auto tokenizer_config = this->_shared_setup_tokenizer(model_path);
-    this->boi_token_id = tokenizer_config["boi_token"].get<int>();
-    this->image_softtoken_budget = tokenizer_config["image_token"].get<int>();
-    this->eoi_token_id = tokenizer_config["eoi_token"].get<int>();
-
-    this->boa_token_id = tokenizer_config["boa_token"].get<int>();
-    this->audio_soft_token_id = tokenizer_config["audio_token"].get<int>();
-    this->eoa_token_id = tokenizer_config["eoa_token"].get<int>();
 }
 
 std::string Gemma4e::apply_chat_template(nlohmann::ordered_json& messages, nlohmann::ordered_json tools) {
@@ -71,6 +64,7 @@ std::string Gemma4e::apply_chat_template(nlohmann::ordered_json& messages, nlohm
 
 bool Gemma4e::insert(chat_meta_info_t& meta_info, lm_uniform_input_t& input) {
     // preprocess
+    constexpr int image_soft_token_id = 248056;
     this->profiler_list[TKOEN_ENCODE_TIME].start();
     std::string templated_text;
     if (input.messages.empty() && input.prompt.empty()) {
