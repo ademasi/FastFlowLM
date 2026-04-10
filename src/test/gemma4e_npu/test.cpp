@@ -70,40 +70,44 @@ int main(int argc, char* argv[]) {
     if (short_prompt) {
 
 
-        uniformed_input.prompt = "What is the distance from earth to moon? Can you do a basic calculation that how long does it take for light to do a round trip between moon and earth?";
+        // uniformed_input.prompt = "What is the distance from earth to moon? Can you do a basic calculation that how long does it take for light to do a round trip between moon and earth?";
         
-
+        uniformed_input.prompt = "What are these image?";
         uniformed_input.audios.push_back("/home/shouyud/liquid-mega-kernel-npu/python_code/gemma4/Demos_sample-data_journal.wav");
         uniformed_input.audios.push_back("/home/shouyud/liquid-mega-kernel-npu/python_code/gemma4/tenyears_00_curry_128kb.mp3");        
         uniformed_input.audios.push_back("/home/shouyud/liquid-mega-kernel-npu/python_code/qwen3_tts/output_voice_clone.wav");        
+
         // // uniformed_input.prompt = "Solve the equation x^3 - 1 = 0 for me.";
-        // uniformed_input.images.push_back("../../../tb_files/panda.png");
-        // uniformed_input.images.push_back("../../../tb_files/puppy.png");
+        uniformed_input.images.push_back("../../../tb_files/panda.png");
+        uniformed_input.images.push_back("../../../tb_files/puppy.png");
         
-        uniformed_input.images.push_back("../../../tb_files/mj_icon.jpg");
-        uniformed_input.images.push_back("../../../tb_files/google_icon.png");
+        // uniformed_input.images.push_back("../../../tb_files/mj_icon.jpg");
+        // uniformed_input.images.push_back("../../../tb_files/google_icon.png");
+        // uniformed_input.images.push_back("../../../tb_files/mj_icon.jpg");
+        // uniformed_input.images.push_back("../../../tb_files/google_icon.png");
         uniformed_input.images.push_back("../../../tb_files/pcb.jpg");
         
         std::cout << "Prompt: " << uniformed_input.prompt << std::endl;
         std::cout << "Response: " << std::endl;
         chat->start_total_timer();
-        std::string response = chat->generate_with_prompt(meta_info, uniformed_input, 1024, std::cout);
+        std::string response = chat->generate_with_prompt(meta_info, uniformed_input, 8192, std::cout);
         chat->stop_total_timer();
         std::cout << std::endl;
         std::cout << std::endl;
         std::cout << chat->show_profile() << std::endl;
-        // uniformed_input.images.clear();
+        uniformed_input.images.clear();
         // uniformed_input.images.push_back("../../../tb_files/pcb.jpg");
-        // uniformed_input.prompt = "How about this?";
         
-        // std::cout << "Prompt: " << uniformed_input.prompt << std::endl;
-        // std::cout << "Response: " << std::endl;
-        // chat->start_total_timer();
-        // response = chat->generate_with_prompt(meta_info, uniformed_input, 8192, std::cout);
-        // chat->stop_total_timer();
-        // std::cout << std::endl;
-        // std::cout << std::endl;
-        // std::cout << chat->show_profile() << std::endl;
+        uniformed_input.prompt = "Can I play game on the moon?";
+        
+        std::cout << "Prompt: " << uniformed_input.prompt << std::endl;
+        std::cout << "Response: " << std::endl;
+        chat->start_total_timer();
+        response = chat->generate_with_prompt(meta_info, uniformed_input, 8192, std::cout);
+        chat->stop_total_timer();
+        std::cout << std::endl;
+        std::cout << std::endl;
+        std::cout << chat->show_profile() << std::endl;
     }
     else{
         std::ifstream file("../../../../prompt.txt", std::ios::binary);
@@ -132,9 +136,9 @@ int main(int argc, char* argv[]) {
     std::cout << "History length: " << history.second.size() << std::endl;
     std::cout << std::endl;
 
-    for (int i = 0; i < history.second.size(); i++) {
-        std::cout << history.second[i] << " ";
-    }
+    // for (int i = 0; i < history.second.size(); i++) {
+    //     std::cout << history.second[i] << " ";
+    // }
 
 
     std::cout << std::endl;

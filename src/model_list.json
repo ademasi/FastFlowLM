@@ -61,11 +61,11 @@
                 "footprint": 3.9
             }
         },
-        "gemma4e": {
-            "2b": {
-                "name": "Gemma4e-2B-NPU2",
-                "url": "https://huggingface.co/FastFlowLM/Qwen3.5-2B-NPU2",
-                "file_url": "https://huggingface.co/api/models/FastFlowLM/Qwen3.5-2B-NPU2/tree/main",
+        "gemma4": {
+            "e2b-it": {
+                "name": "Gemma4-E2B-IT-NPU2",
+                "url": "https://huggingface.co/FastFlowLM/Gemma4-E2B-IT-NPU2",
+                "file_url": "https://huggingface.co/api/models/FastFlowLM/Gemma4-E2B-IT-NPU2/tree/main",
                 "size": 2000000000,
                 "flm_min_version": "0.9.37",
                 "files": [
