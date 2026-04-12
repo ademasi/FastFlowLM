@@ -78,6 +78,7 @@
                     "chat_template.jinja"
                 ],
                 "vlm": true,
+                "asr": true,
                 "default_context_length": 32768,
                 "max_prefill_len": 4096,
                 "details": {
@@ -90,7 +91,9 @@
                 "label": [
                     "vision",
                     "reasoning",
-                    "tool-calling"
+                    "tool-calling",
+                    "audio",
+                    "transcription"
                 ],
                 "footprint": 7.5
             }
@@ -423,6 +426,7 @@
                     "tokenizer_config.json",
                     "model.q4nx"
                 ],
+                "asr": true,
                 "default_context_length": 448,
                 "details": {
                     "format": "NPU2",

@@ -30,7 +30,7 @@ audio_data_t Gemma4e::load_audio(const std::string &filename, int resample_rate,
 audio_data_t Gemma4e::clip_audio_length(audio_data_t& audio, double max_duration_second) {
     size_t max_frames = static_cast<size_t>(max_duration_second * audio.sample_rate);
     if (audio.num_frames > max_frames) {
-        HEADER_PRINT("WARNING", "Audio duration: " << audio.duration_seconds << "s exceeds the max limit of " << max_duration_second << "s. Clipping the audio.");
+        HEADER_PRINT("FLM", "Audio duration: " << audio.duration_seconds << "s exceeds the max limit of " << max_duration_second << "s. Clipping the audio...");
         size_t max_samples = max_frames * audio.channels;
         audio.samples.resize(max_samples);
         audio.num_samples = max_samples;
