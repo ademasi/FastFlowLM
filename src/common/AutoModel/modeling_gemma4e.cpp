@@ -121,13 +121,14 @@ bool Gemma4e::insert(chat_meta_info_t& meta_info, lm_uniform_input_t& input) {
                 exit(-1);
             }
 
-            // apply clipping 
-            //TODO make 30.0 second as a configurable parameter later
+            // apply clipping
             std::vector<audio_data_t> clipped_audio_data = this->clip_audio_length(audio_data, max_support_audio_length_seconds); // clip to 30 seconds, which is the max audio length that Gemma4e can handle
 
             audio_data_list.insert(audio_data_list.end(), clipped_audio_data.begin(), clipped_audio_data.end());
             total_audio_clips += clipped_audio_data.size();
-            header_print("FLM", "Audio[" + std::to_string(i) + "] is clipped to " + std::to_string(clipped_audio_data.size()) + " chunks.");
+            if (clipped_audio_data.size() > 1) {
+                header_print_g("FLM", "Audio[" + std::to_string(i) + "] is clipped to " + std::to_string(clipped_audio_data.size()) + " chunks.");
+            }
         }
 
        this->extract_spectrogram(audio_data_list, audio_payload);
