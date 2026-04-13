@@ -74,6 +74,7 @@ bool Gemma4e::insert(chat_meta_info_t& meta_info, lm_uniform_input_t& input) {
     gemma4e_audio_payload_t audio_payload;
     audio_payload.num_audios = 0;
     image_payload.num_images = 0;
+    int total_audio_clips = 0;
 
     float max_support_audio_length_seconds = 30.0f;
     if (input.images.size() > 0) {
@@ -122,10 +123,11 @@ bool Gemma4e::insert(chat_meta_info_t& meta_info, lm_uniform_input_t& input) {
 
             // apply clipping 
             //TODO make 30.0 second as a configurable parameter later
-            audio_data = this->clip_audio_length(audio_data, max_support_audio_length_seconds); // clip to 30 seconds, which is the max audio length that Gemma4e can handle
+            std::vector<audio_data_t> clipped_audio_data = this->clip_audio_length(audio_data, max_support_audio_length_seconds); // clip to 30 seconds, which is the max audio length that Gemma4e can handle
 
-            audio_data_list.push_back(audio_data);
-
+            audio_data_list.insert(audio_data_list.end(), clipped_audio_data.begin(), clipped_audio_data.end());
+            total_audio_clips += clipped_audio_data.size();
+            header_print("FLM", "Audio[" + std::to_string(i) + "] is clipped to " + std::to_string(clipped_audio_data.size()) + " chunks.");
         }
 
        this->extract_spectrogram(audio_data_list, audio_payload);
@@ -261,10 +263,10 @@ bool Gemma4e::insert(chat_meta_info_t& meta_info, lm_uniform_input_t& input) {
             content["content"].push_back(image_obj);
         }
         // Add audio objects to content array
-        for (int i = 0; i < input.audios.size(); i++) {
+        for (int i = 0; i < total_audio_clips; i++) {
             nlohmann::ordered_json audio_obj;
             audio_obj["type"] = "audio";
-            audio_obj["audio"] = input.audios[i];
+            audio_obj["audio"] = input.audios[0]; // this is just a placeholder
             content["content"].push_back(audio_obj);
         }
         
@@ -286,7 +288,7 @@ bool Gemma4e::insert(chat_meta_info_t& meta_info, lm_uniform_input_t& input) {
         total_image_tokens += image_payload.num_soft_tokens_per_image[i];
     }
     int total_audio_tokens = 0;
-    for (int i = 0; i < input.audios.size(); i++) {
+    for (int i = 0; i < total_audio_clips; i++) {
         total_audio_tokens += audio_payload.num_soft_tokens_per_audio[i];
     }
 

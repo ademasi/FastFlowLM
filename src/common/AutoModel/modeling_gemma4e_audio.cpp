@@ -27,17 +27,33 @@ audio_data_t Gemma4e::load_audio(const std::string &filename, int resample_rate,
     return result;
 }
 
-audio_data_t Gemma4e::clip_audio_length(audio_data_t& audio, double max_duration_second) {
+std::vector<audio_data_t> Gemma4e::clip_audio_length(audio_data_t& audio, double max_duration_second) {
+    std::vector<audio_data_t> audio_chunks;
     size_t max_frames = static_cast<size_t>(max_duration_second * audio.sample_rate);
-    if (audio.num_frames > max_frames) {
-        HEADER_PRINT("FLM", "Audio duration: " << audio.duration_seconds << "s exceeds the max limit of " << max_duration_second << "s. Clipping the audio...");
-        size_t max_samples = max_frames * audio.channels;
-        audio.samples.resize(max_samples);
-        audio.num_samples = max_samples;
-        audio.num_frames = max_frames;
-        audio.duration_seconds = static_cast<double>(max_frames) / audio.sample_rate;
+
+    size_t total_frames = audio.num_frames;
+    size_t total_samples = audio.num_samples;
+    size_t chunk_start_frame = 0;
+
+    while (chunk_start_frame < total_frames) {
+        size_t chunk_end_frame = std::min(chunk_start_frame + max_frames, total_frames);
+        size_t chunk_start_sample = chunk_start_frame * audio.channels;
+        size_t chunk_end_sample = chunk_end_frame * audio.channels;
+
+        audio_data_t chunk;
+        chunk.sample_rate = audio.sample_rate;
+        chunk.channels = audio.channels;
+        chunk.num_frames = chunk_end_frame - chunk_start_frame;
+        chunk.num_samples = chunk.num_frames * audio.channels;
+        chunk.duration_seconds = static_cast<double>(chunk.num_frames) / audio.sample_rate;
+        chunk.samples.assign(audio.samples.begin() + chunk_start_sample, audio.samples.begin() + chunk_end_sample);
+
+        audio_chunks.push_back(std::move(chunk));
+
+        chunk_start_frame = chunk_end_frame;
     }
-    return audio;
+
+    return audio_chunks;
 }
 
 

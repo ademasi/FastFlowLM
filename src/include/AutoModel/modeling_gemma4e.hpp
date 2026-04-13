@@ -45,7 +45,7 @@ private:
     // Audio processing functionality
     AudioReader audio_reader_;
     audio_data_t load_audio(const std::string &filename, int resample_rate, MonoDownmixMode downmix = MonoDownmixMode::NONE);
-    audio_data_t clip_audio_length(audio_data_t& audio, double max_duration_second);
+    std::vector<audio_data_t> clip_audio_length(audio_data_t& audio, double max_duration_second);
     void extract_spectrogram(std::vector<audio_data_t>& audio_inputs, gemma4e_audio_payload_t& audio_payload);
 
     int image_softtoken_budget = 280; // set a default value
