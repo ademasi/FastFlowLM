@@ -79,53 +79,6 @@ bool Gemma4e::insert(chat_meta_info_t& meta_info, lm_uniform_input_t& input) {
     int total_audio_clips = 0;
     std::vector<audio_data_t> audio_data_list;
 
-    if (!input.messages.empty()) { // already a formated messages, usually from REST API
-        nlohmann::ordered_json gemma4_message = nlohmann::ordered_json::array();
-        for (const auto& item : input.messages) {
-            if (!item.contains("images") && !item.contains("audios")) {
-                gemma4_message.push_back(item);
-                continue;
-            }
-
-            nlohmann::ordered_json newContent = nlohmann::ordered_json::array();
-            if (item.contains("images")) {
-                for (const auto& img : item["images"]) {
-                    newContent.push_back({{"type", "image"}, {"image", img}});
-                }
-            }
-            if (item.contains("audios")) {
-                for (const auto& aud : item["audios"]) {
-                    newContent.push_back({{"type", "audio"}, {"audio", aud}});
-                }
-            }
-            newContent.push_back({{"type", "text"}, {"text", item.value("content", "")}});
-
-            nlohmann::ordered_json newItem = {
-                {"role", item.value("role", "user")},
-                {"content", newContent}
-            };
-            gemma4_message.push_back(newItem);
-        }
-        templated_text = this->apply_chat_template(gemma4_message, input.tools);
-    }
-    else if (!input.prompt.empty()) { // a pure text, usually from the cli
-        nlohmann::ordered_json messages;
-        nlohmann::ordered_json content;
-        content["role"] = "user";
-        content["content"] = nlohmann::ordered_json::array();
-        
-        for (int i = 0; i < input.images.size(); i++) {
-            content["content"].push_back({{"type", "image"}, {"image", input.images[i]}});
-        }
-        for (int i = 0; i < total_audio_clips; i++) {
-            content["content"].push_back({{"type", "audio"}, {"audio", input.audios[0]}}); // placeholder
-        }
-        
-        content["content"].push_back({{"type", "text"}, {"text", input.prompt}});
-        messages.push_back(content);
-        templated_text = this->apply_chat_template(messages);
-    }
-
     if (!input.messages.empty()) { // Server Processing
         int total_images = 0;
         for (auto& message : input.messages) {
@@ -193,6 +146,7 @@ bool Gemma4e::insert(chat_meta_info_t& meta_info, lm_uniform_input_t& input) {
                 
                 if (clipped_audio_data.size() > 1) {
                     header_print_g("FLM", "Audio[" + std::to_string(i) + "] is clipped to " + std::to_string(clipped_audio_data.size()) + " chunks.");
+                    std::cout << std::endl;
                 }
             }
         }
@@ -255,6 +209,52 @@ bool Gemma4e::insert(chat_meta_info_t& meta_info, lm_uniform_input_t& input) {
             audio_payload.num_soft_tokens_per_audio.push_back(num_tokens);
         }
     }
+    if (!input.messages.empty()) { // already a formated messages, usually from REST API
+        nlohmann::ordered_json gemma4_message = nlohmann::ordered_json::array();
+        for (const auto& item : input.messages) {
+            if (!item.contains("images") && !item.contains("audios")) {
+                gemma4_message.push_back(item);
+                continue;
+            }
+
+            nlohmann::ordered_json newContent = nlohmann::ordered_json::array();
+            if (item.contains("images")) {
+                for (const auto& img : item["images"]) {
+                    newContent.push_back({{"type", "image"}, {"image", img}});
+                }
+            }
+            if (item.contains("audios")) {
+                for (const auto& aud : item["audios"]) {
+                    newContent.push_back({{"type", "audio"}, {"audio", aud}});
+                }
+            }
+            newContent.push_back({{"type", "text"}, {"text", item.value("content", "")}});
+
+            nlohmann::ordered_json newItem = {
+                {"role", item.value("role", "user")},
+                {"content", newContent}
+            };
+            gemma4_message.push_back(newItem);
+        }
+        templated_text = this->apply_chat_template(gemma4_message, input.tools);
+    }
+    else if (!input.prompt.empty()) { // a pure text, usually from the cli
+        nlohmann::ordered_json messages;
+        nlohmann::ordered_json content;
+        content["role"] = "user";
+        content["content"] = nlohmann::ordered_json::array();
+        
+        for (int i = 0; i < input.images.size(); i++) {
+            content["content"].push_back({{"type", "image"}, {"image", input.images[i]}});
+        }
+        for (int i = 0; i < total_audio_clips; i++) {
+            content["content"].push_back({{"type", "audio"}, {"audio", input.audios[0]}}); // placeholder
+        }
+        
+        content["content"].push_back({{"type", "text"}, {"text", input.prompt}});
+        messages.push_back(content);
+        templated_text = this->apply_chat_template(messages);
+    }
 
     std::vector<int> tokens_init = this->tokenizer->encode(templated_text);
 
@@ -297,6 +297,8 @@ bool Gemma4e::insert(chat_meta_info_t& meta_info, lm_uniform_input_t& input) {
             tokens.push_back(tokens_init[i]);
         }
     }
+    assert(image_counter == image_payload.num_images);
+    assert(audio_counter == audio_payload.num_audios);
       
     this->profiler_list[TKOEN_ENCODE_TIME].stop(tokens.size());
 
