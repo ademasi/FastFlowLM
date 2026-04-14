@@ -124,6 +124,7 @@ class LM_Config{
             assert(this->num_hidden_layers > 0);
             assert(this->num_key_value_heads > 0);
             this->vision_model_weight = this->model_path + "/" + this->vision_model_weight;
+            this->audio_model_weight = this->model_path + "/" + this->audio_model_weight;
         }
         std::string _str(){
             std::stringstream ss;

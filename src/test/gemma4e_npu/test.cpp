@@ -65,30 +65,12 @@ int main(int argc, char* argv[]) {
     header_print("info", "Model loaded");
     chat_meta_info_t meta_info;
     lm_uniform_input_t uniformed_input;
-    // chat->set_topk(1);
-
+    chat->set_topk(1);
+    
     if (short_prompt) {
-        uniformed_input.prompt = "What are these image?";
-        // // uniformed_input.prompt = "Solve the equation x^3 - 1 = 0 for me.";
-        uniformed_input.images.push_back("../../../tb_files/panda.png");
-        uniformed_input.images.push_back("../../../tb_files/puppy.png");
-        
-        // uniformed_input.images.push_back("../../../tb_files/mj_icon.jpg");
-        // uniformed_input.images.push_back("../../../tb_files/google_icon.png");
-        uniformed_input.images.push_back("../../../tb_files/pcb.jpg");
-        
-        std::cout << "Prompt: " << uniformed_input.prompt << std::endl;
-        std::cout << "Response: " << std::endl;
-        chat->start_total_timer();
-        std::string response = chat->generate_with_prompt(meta_info, uniformed_input, 8192, std::cout);
-        chat->stop_total_timer();
-        std::cout << std::endl;
-        std::cout << std::endl;
-        std::cout << chat->show_profile() << std::endl;
-        uniformed_input.images.clear();
-        // uniformed_input.images.push_back("../../../tb_files/pcb.jpg");
-        
-        uniformed_input.prompt = "Can I play game on the moon?";
+        std::string response;
+        // Phase 0: test text input
+        uniformed_input.prompt = "Hello, introduce yourself briefly.";
         
         std::cout << "Prompt: " << uniformed_input.prompt << std::endl;
         std::cout << "Response: " << std::endl;
@@ -98,6 +80,46 @@ int main(int argc, char* argv[]) {
         std::cout << std::endl;
         std::cout << std::endl;
         std::cout << chat->show_profile() << std::endl;
+        uniformed_input.images.clear();
+        uniformed_input.audios.clear();
+        chat->clear_context();
+        
+        // Phase 2: test image
+        uniformed_input.prompt = "What are these image?";   
+
+        uniformed_input.images.push_back("../../../tb_files/panda.png");
+        uniformed_input.images.push_back("../../../tb_files/puppy.png");
+        uniformed_input.images.push_back("../../../tb_files/pcb.jpg");
+        
+        std::cout << "Prompt: " << uniformed_input.prompt << std::endl;
+        std::cout << "Response: " << std::endl;
+        chat->start_total_timer();
+        response = chat->generate_with_prompt(meta_info, uniformed_input, 8192, std::cout);
+        chat->stop_total_timer();
+        std::cout << std::endl;
+        std::cout << std::endl;
+        std::cout << chat->show_profile() << std::endl;
+        uniformed_input.images.clear();
+        uniformed_input.audios.clear();
+        chat->clear_context();
+        
+        // Phase 3: test audio
+        uniformed_input.prompt = "Transcribe the following speech segment in its original language. Follow these specific instructions for formatting the answer:\n* Only output the transcription, with no newlines.\n* When transcribing numbers, write the digits, i.e. write 1.7 and not one point seven, and write 3 instead of three.";
+
+        // uniformed_input.audios.push_back("../../../tb_files/Demos_sample-data_journal.wav");
+        // uniformed_input.audios.push_back("../../../tb_files/tenyears_00_curry_128kb.mp3");        
+        // uniformed_input.audios.push_back("../../../tb_files/output_voice_clone.wav");     
+        uniformed_input.audios.push_back("../../../tb_files/nvidia.mp3");     
+        
+        std::cout << "Prompt: " << uniformed_input.prompt << std::endl;
+        std::cout << "Response: " << std::endl;
+        chat->start_total_timer();
+        response = chat->generate_with_prompt(meta_info, uniformed_input, 8192, std::cout);
+        chat->stop_total_timer();
+        std::cout << std::endl;
+        std::cout << std::endl;
+        std::cout << chat->show_profile() << std::endl;
+        chat->clear_context();
     }
     else{
         std::ifstream file("../../../../prompt.txt", std::ios::binary);

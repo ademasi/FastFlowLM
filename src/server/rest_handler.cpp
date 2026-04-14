@@ -99,6 +99,7 @@ static json normalize_template(json messages) {
         json new_message = message;
         std::string merged_text;
         nlohmann::ordered_json::array_t merged_images;
+        nlohmann::ordered_json::array_t merged_audio;
 
         if (message["content"].is_string()) {
             // Simple format: just text
@@ -125,6 +126,10 @@ static json normalize_template(json messages) {
                     }
                     merged_images.push_back(image_url);
                 }
+                else if (contentItem.contains("type") && contentItem["type"] == "input_audio") {
+                    std::string audio_base64 = contentItem["input_audio"]["data"].get<std::string>();
+                    merged_audio.push_back(audio_base64);
+                }
             }
         }
 
@@ -133,6 +138,10 @@ static json normalize_template(json messages) {
         if (!merged_images.empty()) {
             new_message["images"] = merged_images;
         }
+        if (!merged_audio.empty()) {
+            new_message["audios"] = merged_audio;
+        }
+        
 
         template_message.push_back(new_message);
     }
@@ -316,6 +325,11 @@ void RestHandler::configure_chat_engine_parameters(const json& options, const js
     if (request.contains("reasoning_effort")) {
         std::string reasoning_effort = request["reasoning_effort"];
         auto_chat_engine->configure_parameter("reasoning_effort", reasoning_effort);
+    }
+
+    if (request.contains("image-max-tokens")) {
+        int image_max_tokens = request["image-max-tokens"];
+        auto_chat_engine->configure_parameter("image_max_tokens", image_max_tokens);
     }
 }
 

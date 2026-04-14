@@ -111,6 +111,7 @@ typedef enum {
 typedef enum {
 	chat_ml,
 	harmony,
+	gemma4,
 	unknown_template
 } chat_template_type_t;
 

@@ -59,7 +59,7 @@ typedef struct {
 
 
 
-typedef struct {
+struct gemma4e_image_payload_t{
     // original raw data
     std::vector<std::pair<int, int>> image_patch__element_per_patch; // [num_of_image][width, height]
     std::vector<uint32_t> valid_patch_size_per_image; // [num_of_image], the unpadded size per image
@@ -67,12 +67,24 @@ typedef struct {
     std::vector< std::vector<int>> image_grid_pairs_per_image; // [num_of_image][num_of_position_id][x, y]
     std::vector<unsigned int> num_soft_tokens_per_image; // [num_of_image]
     unsigned int num_images;
+};
 
 
+struct gemma4e_audio_payload_t{
+    // per-audio mel spectrogram data
+    std::vector<std::vector<bf16>> mel_spectrograms;               // [num_audios][frames * bins], row-major
+    std::vector<int> mel_spectrogram_frames_per_audio;             // [num_audios]
+    std::vector<int> mel_spectrogram_bins_per_audio;               // [num_audios]
+    unsigned int num_audios = 0;
+    std::vector<unsigned int> num_soft_tokens_per_audio; // [num_audios]
 
-}gemma4e_image_payload_t;
+};
 
 
+typedef struct {
+    gemma4e_image_payload_t image_payload;
+    gemma4e_audio_payload_t audio_payload;
+} gemma4e_multi_modal_payload_t;
 
 class gemma4e_npu : public causal_lm{
 public:
@@ -143,7 +155,8 @@ public:
     unsigned int Audio_MM_TILE_N;
     int Gemma4E_Audio_resample_rate;
     float Gemma4E_Audio_gradient_clipping;
-    unsigned int Gemma4E_Audio_OUTPUT_SIZE;
+    unsigned int Gemma4E_Audio_Multimodal_Output_SIZE;
+    unsigned int Gemma4E_Audio_language_projection_output_size;
     unsigned int Gemma4E_Audio_HIDDEN_SIZE;
     unsigned int Gemma4E_Audio_INTERMEDIATE_SIZE;
     unsigned int Gemma4E_Audio_attention_chunk_size;
@@ -152,9 +165,14 @@ public:
     unsigned int Gemma4E_Audio_num_attention_heads;
     unsigned int Gemma4E_Audio_num_attention_layers;
     unsigned int Gemma4E_Audio_conv1d_kernel_size;
-    unsigned int Gemma4E_conv2d_kernel_size;
-    unsigned int Gemma4E_conv2d_Stride;
-    unsigned int Gemma4e_conv2d_Padding;
+    unsigned int Gemma4E_Audio_conv1d_stride;
+    unsigned int Gemma4E_Audio_conv2d_kernel_size;
+    unsigned int Gemma4E_Audio_conv2d_Stride;
+    unsigned int Gemma4e_Audio_conv2d_Padding;
+    unsigned int Gemma4E_Audio_subsampling_conv_channels_0;
+    unsigned int Gemma4E_Audio_subsampling_conv_channels_1;
+    float Gemma4E_Audio_attention_softcap;
+
 
     inline void load_vision_preprocess_parameters(LM_Config& config){
         // Note: this should be called by Impl:: constructor
@@ -180,7 +198,8 @@ public:
         Audio_MM_TILE_N = config._audio_config.value("Audio_MM_TILE_N", 64);
         Gemma4E_Audio_resample_rate = config._audio_config.value("Gemma4E_Audio_audio_resample_rate", -1);
         Gemma4E_Audio_gradient_clipping = config._audio_config.value("Gemma4E_Audio_gradient_clipping", -1.0f);
-        Gemma4E_Audio_OUTPUT_SIZE = config._audio_config.value("Gemma4E_Audio_OUTPUT_SIZE", -1);
+        Gemma4E_Audio_Multimodal_Output_SIZE = config._audio_config.value("Gemma4E_Audio_Multimodal_Output_SIZE", -1);
+        Gemma4E_Audio_language_projection_output_size = config._audio_config.value("Gemma4E_Audio_language_projection_output_size", -1);
         Gemma4E_Audio_HIDDEN_SIZE = config._audio_config.value("Gemma4E_Audio_HIDDEN_SIZE", -1);
         Gemma4E_Audio_INTERMEDIATE_SIZE = config._audio_config.value("Gemma4E_Audio_INTERMEDIATE_SIZE", -1);
         Gemma4E_Audio_attention_chunk_size = config._audio_config.value("Gemma4E_Audio_attention_chunk_size", -1);
@@ -189,9 +208,13 @@ public:
         Gemma4E_Audio_num_attention_heads = config._audio_config.value("Gemma4E_Audio_num_attention_heads", -1);
         Gemma4E_Audio_num_attention_layers = config._audio_config.value("Gemma4E_Audio_num_attention_layers", -1);
         Gemma4E_Audio_conv1d_kernel_size = config._audio_config.value("Gemma4E_Audio_conv1d_kernel_size", -1);
-        Gemma4E_conv2d_kernel_size = config._audio_config.value("Gemma4E_conv2d_kernel_size", -1);
-        Gemma4E_conv2d_Stride = config._audio_config.value("Gemma4E_conv2d_Stride", -1);
-        Gemma4e_conv2d_Padding = config._audio_config.value("Gemma4e_conv2d_Padding", -1);
+        Gemma4E_Audio_conv1d_stride = config._audio_config.value("Gemma4E_Audio_conv1d_stride", -1);
+        Gemma4E_Audio_conv2d_kernel_size = config._audio_config.value("Gemma4E_conv2d_kernel_size", -1);
+        Gemma4E_Audio_conv2d_Stride = config._audio_config.value("Gemma4E_conv2d_Stride", -1);
+        Gemma4e_Audio_conv2d_Padding = config._audio_config.value("Gemma4e_conv2d_Padding", -1);
+        Gemma4E_Audio_subsampling_conv_channels_0 = config._audio_config.value("Gemma4E_Audio_subsampling_conv_channels_0", -1);
+        Gemma4E_Audio_subsampling_conv_channels_1 = config._audio_config.value("Gemma4E_Audio_subsampling_conv_channels_1", -1);
+        Gemma4E_Audio_attention_softcap = config._audio_config.value("Gemma4E_Audio_attention_softcap", -1.0f);
     }
 
 private:
