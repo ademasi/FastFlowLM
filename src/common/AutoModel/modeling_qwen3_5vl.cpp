@@ -328,7 +328,12 @@ StreamResult Qwen3_5VL::parse_stream_content(const std::string content) {
                 std::string param_value = block.substr(val_start, val_end - val_start);
                 if (!param_value.empty() && param_value.back() == '\n') param_value.pop_back();
 
-                args[param_name] = param_value;
+                try {
+                    args[param_name] = nlohmann::json::parse(param_value);
+                }
+                catch(const nlohmann::json::parse_error&) {
+                    args[param_name] = param_value;
+                }
                 search_pos = val_end + param_close.length();
             }
 
