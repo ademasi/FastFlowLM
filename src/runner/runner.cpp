@@ -101,7 +101,7 @@ Runner::Runner(model_list& supported_models, ModelDownloader& downloader, progra
             }
         }
         else {
-            header_print("FLM", "ASR is supported by the loaded model: " + this->tag);
+            header_print("FLM", "The loaded model (" + this->tag + ") already supports ASR. No additional ASR model is needed.");
         }
     }
 #else
