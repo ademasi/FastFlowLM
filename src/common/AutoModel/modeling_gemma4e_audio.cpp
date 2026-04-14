@@ -7,10 +7,23 @@
 
 #include "AutoModel/modeling_gemma4e.hpp"
 #include "audio_process_utils/audioproc.hpp"
+#include "base64.hpp"
 #include <utility>
 #include <cmath>
 #include <algorithm>
 #include <numeric>
+audio_data_t Gemma4e::load_audio_base64(const std::string &base64_str, int resample_rate, MonoDownmixMode downmix) {
+    audio_data_t empty_result;
+    audio_data_t result;
+    // Decode base64 to raw bytes
+    std::string audio_bytes = base64::from_base64(base64_str);
+    if (!audio_reader_.load_audio_from_memory(reinterpret_cast<const uint8_t*>(audio_bytes.data()), audio_bytes.size(), result, resample_rate, downmix)) {
+        std::cerr << "Failed to load audio from base64 string" << std::endl;
+        exit(-1);
+        //return empty_result;
+    }
+    return result;
+}
 
 
 

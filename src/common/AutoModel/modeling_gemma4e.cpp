@@ -61,9 +61,9 @@ std::string Gemma4e::apply_chat_template(nlohmann::ordered_json& messages, nlohm
 }
 
 bool Gemma4e::insert(chat_meta_info_t& meta_info, lm_uniform_input_t& input) {
-    // preprocess
     this->profiler_list[TKOEN_ENCODE_TIME].start();
     std::string templated_text;
+    
     if (input.messages.empty() && input.prompt.empty()) {
         header_print("WARNING", "No messages or prompt provided");
         return false;
@@ -74,169 +74,75 @@ bool Gemma4e::insert(chat_meta_info_t& meta_info, lm_uniform_input_t& input) {
     gemma4e_audio_payload_t audio_payload;
     audio_payload.num_audios = 0;
     image_payload.num_images = 0;
-    int total_audio_clips = 0;
-
+    
     float max_support_audio_length_seconds = 30.0f;
-    if (input.images.size() > 0) {
+    int total_audio_clips = 0;
+    std::vector<audio_data_t> audio_data_list;
 
-
-        // header_print("info", "Processing images...");
-        
-        // time_utils::time_point preprocess_start = time_utils::now();
-        for(const auto& img_str : input.images){
-            gemma4e_image_t image = this->load_image(img_str);
-
-
-
-            std::vector<bf16> pixel_values;
-            std::pair<int, int> patch_element_per_patch;
-            uint32_t valid_patch_size = 0;
-            uint32_t num_soft_tokens = 0;
-            std::vector<int> image_grid_pairs; // [num_of_position_id][x, y]
-            preprocess_image(image,
-                patch_element_per_patch,
-                valid_patch_size, 
-                pixel_values,
-                image_grid_pairs,
-                num_soft_tokens);
-
-            image_payload.image_patch__element_per_patch.push_back(patch_element_per_patch);
-            image_payload.valid_patch_size_per_image.push_back(valid_patch_size);
-            image_payload.pixel_values.push_back(pixel_values);
-            image_payload.image_grid_pairs_per_image.push_back(image_grid_pairs);
-            image_payload.num_soft_tokens_per_image.push_back(num_soft_tokens);
-            image_payload.num_images++;
-        } 
-    }
-    if(input.audios.size() > 0){
-
-        std::vector<audio_data_t> audio_data_list;
-        for(int i = 0; i < input.audios.size(); i++){
-            std::string audio_str = input.audios[i];
-            
-            gemma4e_npu *gemma4e_engine = dynamic_cast<gemma4e_npu*>(this->lm_engine.get());
-            audio_data_t audio_data = this->load_audio(audio_str ,gemma4e_engine->Gemma4E_Audio_resample_rate, MonoDownmixMode::MEAN); 
-            if(audio_data.channels > 1){
-                std::cerr << "only mono audio is supported, but got " << audio_data.original_channels << " channels. Please convert it to mono first." << std::endl;
-                exit(-1);
-            }
-
-            // apply clipping
-            std::vector<audio_data_t> clipped_audio_data = this->clip_audio_length(audio_data, max_support_audio_length_seconds); // clip to 30 seconds, which is the max audio length that Gemma4e can handle
-
-            audio_data_list.insert(audio_data_list.end(), clipped_audio_data.begin(), clipped_audio_data.end());
-            total_audio_clips += clipped_audio_data.size();
-            if (clipped_audio_data.size() > 1) {
-                header_print_g("FLM", "Audio[" + std::to_string(i) + "] is clipped to " + std::to_string(clipped_audio_data.size()) + " chunks.");
-            }
-        }
-
-       this->extract_spectrogram(audio_data_list, audio_payload);
-
-        // Calculate the number of soft tokens per audio
-        // Mirrors Python's _compute_audio_num_tokens:
-        //   1. Mel framing (unfold) count
-        //   2. Two Conv2d subsampling layers (kernel=3, stride=2, semicausal pad top=1, bottom=1)
-        //   3. Cap at audio_seq_length
-        {
-            gemma4e_npu *gemma4e_engine = dynamic_cast<gemma4e_npu*>(this->lm_engine.get());
-            const unsigned int conv2d_kernel = gemma4e_engine->Gemma4E_Audio_conv2d_kernel_size;
-            const unsigned int conv2d_stride = gemma4e_engine->Gemma4E_Audio_conv2d_Stride;
-            const unsigned int conv2d_padding = gemma4e_engine->Gemma4e_Audio_conv2d_Padding;
-            const unsigned int max_audio_seq_length =max_support_audio_length_seconds * gemma4e_engine->Gemma4E_Audio_resample_rate;    // calculate from 30 second using gemma4e->Gemma4E_Audio_resample_rate
-            
-            constexpr float frame_length_ms = 20.0f;
-            constexpr float hop_length_ms   = 10.0f;
-
-            for(int i = 0; i < audio_payload.num_audios; i++){
-                const int num_samples = static_cast<int>(audio_data_list[i].num_samples);
-                const int sampling_rate = audio_data_list[i].sample_rate;
-
-                // Step 1: Mel frames (matches feature_extraction_gemma4.py _unfold)
-                const int frame_length = static_cast<int>(std::round(sampling_rate * frame_length_ms / 1000.0f));
-                const int hop_length   = static_cast<int>(std::round(sampling_rate * hop_length_ms / 1000.0f));
-                const int frame_size_for_unfold = frame_length + 1;
-
-                const int pad_left = frame_length / 2;
-                const int padded_samples = num_samples + pad_left;
-                int num_mel_frames = (padded_samples - frame_size_for_unfold) / hop_length + 1;
-
-                unsigned int num_tokens = 0;
-                if (num_mel_frames > 0) {
-                    // Step 2: Two SSCP conv layers
-                    // Each layer: T_out = (T_in + pad_top + pad_bottom - kernel) // stride + 1
-                    int t = num_mel_frames;
-                    for (int layer = 0; layer < 2; layer++) {
-                        int t_padded = t + 2 * static_cast<int>(conv2d_padding);
-                        t = (t_padded - static_cast<int>(conv2d_kernel)) / static_cast<int>(conv2d_stride) + 1;
-                    }
-                    // Cap at audio_seq_length
-                    assert(t< max_audio_seq_length);
-                    num_tokens =t;
-                }
-                
-                audio_payload.num_soft_tokens_per_audio.push_back(num_tokens);
-            }
-        }
-
-        // print out the actual info for each audio_payload.audio
-        // for(int i = 0; i < audio_payload.num_audios; i++){
-        //     header_print("Audio Preprocess Debug", "Audio " + std::to_string(i) 
-        //         + ": mel spectrogram frames = " + std::to_string(audio_payload.mel_spectrogram_frames_per_audio[i]) 
-        //         + ", mel spectrogram bins = " + std::to_string(audio_payload.mel_spectrogram_bins_per_audio[i])
-        //         + ", num_soft_tokens = " + std::to_string(audio_payload.num_soft_tokens_per_audio[i]));
-        // }   
-    }
     if (!input.messages.empty()) { // already a formated messages, usually from REST API
-        json gemma4_message = json::array();
+        nlohmann::ordered_json gemma4_message = nlohmann::ordered_json::array();
         for (const auto& item : input.messages) {
-            if (!item.contains("images")) {
+            if (!item.contains("images") && !item.contains("audios")) {
                 gemma4_message.push_back(item);
                 continue;
             }
 
-            json newContent = json::array();
-            for (const auto& img : item["images"]) {
-                newContent.push_back({
-                    {"type", "image"},
-                    {"image", img}
-                });
+            nlohmann::ordered_json newContent = nlohmann::ordered_json::array();
+            if (item.contains("images")) {
+                for (const auto& img : item["images"]) {
+                    newContent.push_back({{"type", "image"}, {"image", img}});
+                }
             }
-            //TODO: FIXME: add the audio part later
-            newContent.push_back({
-                {"type", "text"},
-                {"text", item["content"]}
-            });
+            if (item.contains("audios")) {
+                for (const auto& aud : item["audios"]) {
+                    newContent.push_back({{"type", "audio"}, {"audio", aud}});
+                }
+            }
+            newContent.push_back({{"type", "text"}, {"text", item.value("content", "")}});
 
-            json newItem = {
-                {"role", item["role"]},
+            nlohmann::ordered_json newItem = {
+                {"role", item.value("role", "user")},
                 {"content", newContent}
             };
-
             gemma4_message.push_back(newItem);
         }
         templated_text = this->apply_chat_template(gemma4_message, input.tools);
+    }
+    else if (!input.prompt.empty()) { // a pure text, usually from the cli
+        nlohmann::ordered_json messages;
+        nlohmann::ordered_json content;
+        content["role"] = "user";
+        content["content"] = nlohmann::ordered_json::array();
+        
+        for (int i = 0; i < input.images.size(); i++) {
+            content["content"].push_back({{"type", "image"}, {"image", input.images[i]}});
+        }
+        for (int i = 0; i < total_audio_clips; i++) {
+            content["content"].push_back({{"type", "audio"}, {"audio", input.audios[0]}}); // placeholder
+        }
+        
+        content["content"].push_back({{"type", "text"}, {"text", input.prompt}});
+        messages.push_back(content);
+        templated_text = this->apply_chat_template(messages);
+    }
+
+    if (!input.messages.empty()) { // Server Processing
         int total_images = 0;
-        for (auto& message : gemma4_message) {
-            auto content = message.value("content", nlohmann::ordered_json::array());
-            for (auto& item : content) {
-                if (item.contains("type") && item["type"] == "image") {
-                    std::string img_str = item.value("image", "");
-                    if (!img_str.empty()) {
-                        total_images++;
-                    }
+        for (auto& message : input.messages) {
+            // Process Images
+            if (message.contains("images")) {
+                for (auto& img : message["images"]) {
+                    std::string img_str = img.get<std::string>();
+                    if (!img_str.empty()) total_images++;
+                    
                     gemma4e_image_t image = this->load_image_base64(img_str);
                     std::vector<bf16> pixel_values;
                     std::pair<int, int> patch_element_per_patch;
                     uint32_t valid_patch_size = 0;
                     uint32_t num_soft_tokens = 0;
-                    std::vector<int> image_grid_pairs; // [num_of_position_id][x, y]
-                    preprocess_image(image,
-                        patch_element_per_patch,
-                        valid_patch_size, 
-                        pixel_values,
-                        image_grid_pairs,
-                        num_soft_tokens);
+                    std::vector<int> image_grid_pairs;
+
+                    preprocess_image(image, patch_element_per_patch, valid_patch_size, pixel_values, image_grid_pairs, num_soft_tokens);
 
                     image_payload.image_patch__element_per_patch.push_back(patch_element_per_patch);
                     image_payload.valid_patch_size_per_image.push_back(valid_patch_size);
@@ -245,55 +151,125 @@ bool Gemma4e::insert(chat_meta_info_t& meta_info, lm_uniform_input_t& input) {
                     image_payload.num_soft_tokens_per_image.push_back(num_soft_tokens);
                     image_payload.num_images++;
                 }
-                //TODO: fixme, add the audio stuff
+            }
+            // Process Audios
+            if (message.contains("audios")) {
+                gemma4e_npu *gemma4e_engine = dynamic_cast<gemma4e_npu*>(this->lm_engine.get());
+                for (auto& aud : message["audios"]) {
+                    std::string audio_str = aud.get<std::string>();
+                    audio_data_t audio_data = this->load_audio_base64(audio_str, gemma4e_engine->Gemma4E_Audio_resample_rate, MonoDownmixMode::MEAN);
+                    if (audio_data.channels > 1) {
+                        std::cerr << "only mono audio is supported." << std::endl;
+                        exit(-1);
+                    }
+                    std::vector<audio_data_t> clipped_audio_data = this->clip_audio_length(audio_data, max_support_audio_length_seconds);
+                    audio_data_list.insert(audio_data_list.end(), clipped_audio_data.begin(), clipped_audio_data.end());
+                    total_audio_clips += clipped_audio_data.size();
+                    if (clipped_audio_data.size() > 1) {
+                        header_print_g("FLM", "Audio in message is clipped to " + std::to_string(clipped_audio_data.size()) + " chunks.");
+                    }
+                }
             }
         }
         header_print("FLM", "Total images: " << total_images);
     }
-    else if (!input.prompt.empty()) { // a pure text, usually from the cli
-        nlohmann::ordered_json messages;
-        nlohmann::ordered_json content;
-        content["role"] = "user";
-        content["content"] = nlohmann::ordered_json::array();
-        
-        // Add image objects to content array
-        for (int i = 0; i < input.images.size(); i++) {
-            nlohmann::ordered_json image_obj;
-            image_obj["type"] = "image";
-            image_obj["image"] = input.images[i];
-            content["content"].push_back(image_obj);
+    else { // CLI Processing
+        if (input.audios.size() > 0) {
+            gemma4e_npu *gemma4e_engine = dynamic_cast<gemma4e_npu*>(this->lm_engine.get());
+            for (int i = 0; i < input.audios.size(); i++) {
+                std::string audio_str = input.audios[i];
+                audio_data_t audio_data = this->load_audio(audio_str, gemma4e_engine->Gemma4E_Audio_resample_rate, MonoDownmixMode::MEAN); 
+                
+                if (audio_data.channels > 1) {
+                    std::cerr << "only mono audio is supported, but got " << audio_data.original_channels << " channels. Please convert it to mono first." << std::endl;
+                    exit(-1);
+                }
+
+                // apply clipping
+                std::vector<audio_data_t> clipped_audio_data = this->clip_audio_length(audio_data, max_support_audio_length_seconds);
+                audio_data_list.insert(audio_data_list.end(), clipped_audio_data.begin(), clipped_audio_data.end());
+                total_audio_clips += clipped_audio_data.size();
+                
+                if (clipped_audio_data.size() > 1) {
+                    header_print_g("FLM", "Audio[" + std::to_string(i) + "] is clipped to " + std::to_string(clipped_audio_data.size()) + " chunks.");
+                }
+            }
         }
-        // Add audio objects to content array
-        for (int i = 0; i < total_audio_clips; i++) {
-            nlohmann::ordered_json audio_obj;
-            audio_obj["type"] = "audio";
-            audio_obj["audio"] = input.audios[0]; // this is just a placeholder
-            content["content"].push_back(audio_obj);
+
+        if (input.images.size() > 0) {
+            for (const auto& img_str : input.images) {
+                gemma4e_image_t image = this->load_image(img_str);
+                std::vector<bf16> pixel_values;
+                std::pair<int, int> patch_element_per_patch;
+                uint32_t valid_patch_size = 0;
+                uint32_t num_soft_tokens = 0;
+                std::vector<int> image_grid_pairs; 
+
+                preprocess_image(image, patch_element_per_patch, valid_patch_size, pixel_values, image_grid_pairs, num_soft_tokens);
+
+                image_payload.image_patch__element_per_patch.push_back(patch_element_per_patch);
+                image_payload.valid_patch_size_per_image.push_back(valid_patch_size);
+                image_payload.pixel_values.push_back(pixel_values);
+                image_payload.image_grid_pairs_per_image.push_back(image_grid_pairs);
+                image_payload.num_soft_tokens_per_image.push_back(num_soft_tokens);
+                image_payload.num_images++;
+            } 
         }
-        
-        // Add text object to content array
-        nlohmann::ordered_json text_obj;
-        text_obj["type"] = "text";
-        text_obj["text"] = input.prompt;
-        content["content"].push_back(text_obj);
-        
-        messages.push_back(content);
-        templated_text = this->apply_chat_template(messages);
     }
+
+    if (!audio_data_list.empty()) {
+        this->extract_spectrogram(audio_data_list, audio_payload);
+
+        gemma4e_npu *gemma4e_engine = dynamic_cast<gemma4e_npu*>(this->lm_engine.get());
+        const unsigned int conv2d_kernel = gemma4e_engine->Gemma4E_Audio_conv2d_kernel_size;
+        const unsigned int conv2d_stride = gemma4e_engine->Gemma4E_Audio_conv2d_Stride;
+        const unsigned int conv2d_padding = gemma4e_engine->Gemma4e_Audio_conv2d_Padding;
+        const unsigned int max_audio_seq_length = max_support_audio_length_seconds * gemma4e_engine->Gemma4E_Audio_resample_rate;    
+        
+        constexpr float frame_length_ms = 20.0f;
+        constexpr float hop_length_ms   = 10.0f;
+
+        for (int i = 0; i < audio_payload.num_audios; i++) {
+            const int num_samples = static_cast<int>(audio_data_list[i].num_samples);
+            const int sampling_rate = audio_data_list[i].sample_rate;
+
+            const int frame_length = static_cast<int>(std::round(sampling_rate * frame_length_ms / 1000.0f));
+            const int hop_length   = static_cast<int>(std::round(sampling_rate * hop_length_ms / 1000.0f));
+            const int frame_size_for_unfold = frame_length + 1;
+
+            const int pad_left = frame_length / 2;
+            const int padded_samples = num_samples + pad_left;
+            int num_mel_frames = (padded_samples - frame_size_for_unfold) / hop_length + 1;
+
+            unsigned int num_tokens = 0;
+            if (num_mel_frames > 0) {
+                int t = num_mel_frames;
+                for (int layer = 0; layer < 2; layer++) {
+                    int t_padded = t + 2 * static_cast<int>(conv2d_padding);
+                    t = (t_padded - static_cast<int>(conv2d_kernel)) / static_cast<int>(conv2d_stride) + 1;
+                }
+                assert(t < max_audio_seq_length);
+                num_tokens = t;
+            }
+            audio_payload.num_soft_tokens_per_audio.push_back(num_tokens);
+        }
+    }
+
     std::vector<int> tokens_init = this->tokenizer->encode(templated_text);
 
     // update the tokens to include the image tokens
     std::vector<int> tokens;
+    
     int total_image_tokens = 0;
-    for (int i = 0; i < input.images.size(); i++) {
+    for (int i = 0; i < image_payload.num_images; i++) {
         total_image_tokens += image_payload.num_soft_tokens_per_image[i];
     }
+    
     int total_audio_tokens = 0;
-    for (int i = 0; i < total_audio_clips; i++) {
+    for (int i = 0; i < audio_payload.num_audios; i++) {
         total_audio_tokens += audio_payload.num_soft_tokens_per_audio[i];
     }
 
-    
     tokens.reserve(tokens_init.size() + total_image_tokens + total_audio_tokens);
     
     int image_counter = 0;
@@ -302,7 +278,7 @@ bool Gemma4e::insert(chat_meta_info_t& meta_info, lm_uniform_input_t& input) {
     for (int i = 0; i < tokens_init.size(); i++) {
         if (tokens_init[i] == image_token_id) {
             tokens.push_back(boi_token_id); // the first image soft token id, which is reserved for the model to identify the image position, the rest of the soft tokens for this image will be continuous following this id
-            for (int j = 0; j <  image_payload.num_soft_tokens_per_image[image_counter]; j++) {
+            for (int j = 0; j < image_payload.num_soft_tokens_per_image[image_counter]; j++) {
                 tokens.push_back(image_token_id);
             }
             tokens.push_back(eoi_token_id); // a separator token between images, not necessary but can help the model to better distinguish different images
@@ -310,14 +286,13 @@ bool Gemma4e::insert(chat_meta_info_t& meta_info, lm_uniform_input_t& input) {
         } 
         else if (tokens_init[i] == audio_token_id){
             tokens.push_back(boa_token_id); // the first audio soft token id, which is reserved for the model to identify the audio position, the rest of the soft tokens for this audio will be continuous following this id
-            for (int j = 0; j <  audio_payload.num_soft_tokens_per_audio[audio_counter]; j++) {
+            for (int j = 0; j < audio_payload.num_soft_tokens_per_audio[audio_counter]; j++) {
                 tokens.push_back(audio_token_id);
             }
             tokens.push_back(eoa_token_id); // a separator token between audios, not necessary but can help the model to better distinguish different audios
             audio_counter++;
         }
         else {
-            //TODO: FIXME: not sure if it can detect token token fr  now
             tokens.push_back(tokens_init[i]);
         }
     }
@@ -325,18 +300,16 @@ bool Gemma4e::insert(chat_meta_info_t& meta_info, lm_uniform_input_t& input) {
     this->profiler_list[TKOEN_ENCODE_TIME].stop(tokens.size());
 
     // hardware
-
-    
     gemma4e_multi_modal_payload_t multi_modal_payload;
     multi_modal_payload.image_payload = image_payload;
     multi_modal_payload.audio_payload = audio_payload;
 
     if (image_payload.num_images > 0 || audio_payload.num_audios > 0) {
         return this->_shared_insert(meta_info, tokens, &multi_modal_payload);
-    }else{
+    } 
+    else {
         return this->_shared_insert(meta_info, tokens, nullptr);
     }
-
 }
 
 std::string Gemma4e::generate(chat_meta_info_t& meta_info, int length_limit, std::ostream& os, std::function<bool()> is_cancelled) {
