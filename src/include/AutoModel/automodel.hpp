@@ -179,6 +179,7 @@ protected:
 	bool waiting_for_header_ = true;
 
 
+
 	void _shared_load_model(std::string model_path, json model_info, int default_context_length = -1, bool enable_preemption = false);
 	nlohmann::json _shared_setup_tokenizer(std::string model_path);
 
@@ -192,6 +193,13 @@ public:
 	virtual ~AutoModel() = default;
 
 	AutoModel(xrt::device* npu_device_inst, std::string current_model = "");
+
+	void reset_parser() {
+		buffer_.clear();
+		is_in_tool_block_ = false;
+		current_mode_ = StreamEventType::CONTENT;
+	}
+
 	/// \brief Clear the context
 	void clear_context();
 

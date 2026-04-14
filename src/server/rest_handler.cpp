@@ -909,6 +909,7 @@ void RestHandler::handle_openai_chat_completion(const json& request,
         if (stream){
             // Create a wrapper callback that passes the pre-formatted SSE string directly
             cancellation_token->reset();
+            auto_chat_engine->reset_parser();
             auto openai_stream_callback = [&send_streaming_response](const std::string& data, bool is_final) {
                 json data_json = data;
                 send_streaming_response(data_json, is_final);
