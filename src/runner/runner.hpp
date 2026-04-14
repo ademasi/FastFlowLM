@@ -49,6 +49,7 @@ class Runner {
     private:
         std::string tag;
         bool asr;
+        bool asr_supported;
         bool embed;
         model_list supported_models;
         ModelDownloader& downloader;
