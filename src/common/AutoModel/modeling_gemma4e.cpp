@@ -167,6 +167,7 @@ bool Gemma4e::insert(chat_meta_info_t& meta_info, lm_uniform_input_t& input) {
                     total_audio_clips += clipped_audio_data.size();
                     if (clipped_audio_data.size() > 1) {
                         header_print_g("FLM", "Audio in message is clipped to " + std::to_string(clipped_audio_data.size()) + " chunks.");
+                        std::cout << std::endl;
                     }
                 }
             }
