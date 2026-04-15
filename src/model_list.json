@@ -95,7 +95,7 @@
                     "audio",
                     "transcription"
                 ],
-                "footprint": 7.5
+                "footprint": 6.0
             }
         },        
         "qwen3.5": {
