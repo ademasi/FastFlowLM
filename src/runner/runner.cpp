@@ -55,7 +55,7 @@ Runner::Runner(model_list& supported_models, ModelDownloader& downloader, progra
     this->auto_chat_engine = std::move(auto_model.second);
     
     this->tag = auto_model.first;
-    header_print("FLM", "Resolved model tag: " << this->tag);
+
     if (!this->downloader.is_model_downloaded(this->tag)) {
         this->downloader.pull_model(this->tag);
     }
