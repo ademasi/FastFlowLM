@@ -11,6 +11,7 @@ Browse detailed NPU benchmark results for each major model family supported by F
 
 - [LLaMA3](llama3_results/)
 - [Gemma3](gemma3_results/)
+- [Gemma4](gemma4_results/)
 - [Qwen2.5](qwen2.5_results/)
 - [Qwen3](qwen3_results/)
 - [Qwen3.5](qwen3.5_results/)

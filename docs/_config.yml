@@ -146,6 +146,8 @@ docs_nav:
         url: "/docs/benchmarks/llama3_results/"
       - label: Gemma3
         url: "/docs/benchmarks/gemma3_results/"
+      - label: Gemma4
+        url: "/docs/benchmarks/gemma4_results/"
       - label: Qwen2.5
         url: "/docs/benchmarks/qwen2.5_results/"
       - label: Qwen3
