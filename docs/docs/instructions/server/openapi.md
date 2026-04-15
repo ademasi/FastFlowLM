@@ -18,6 +18,7 @@ parent: Local Server (Server Mode)
   - [Example: Batch Requests (Multiple Prompts)](#-example-batch-requests-multiple-prompts)
   - [Example: Use Temperature, Top-p, and Presence Penalty](#-example-use-temperature-top-p-and-presence-penalty)
   - [Example: Multi-Image Input](#-example-multi-image-input)
+  - [Example: Multi-Modal Input](#️-example-multi-modal-input)
 
 ---
 
@@ -354,7 +355,7 @@ gc.collect()
 
 ---
 
-## 🗣️ Example: Multi-Modal Input
+## 🎙️ Example: Multi-Modal Input
 
 Send an image and an audio file together with a text prompt to multimodal interface of `Gemma 4`.
 
